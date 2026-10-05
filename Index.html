@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InvoicePro - Free Invoice Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">InvoicePro</div>
+
+    <nav>
+      <a href="#home">Home</a>
+      <a href="#invoice">Create Invoice</a>
+      <a href="#invoices">Invoices</a>
+      <a href="#customers">Customers</a>
+      <a href="#products">Products</a>
+      <a href="#reports">Reports</a>
+    </nav>
+
+    <a class="btn" href="#invoice">Create Invoice</a>
+  </div>
+</header>
+
+<section id="home" class="hero">
+  <div>
+    <p class="tag">FREE • GST READY • NO SIGNUP</p>
+
+    <h1>Create Professional Invoices in Seconds.</h1>
+
+    <p>
+      Create beautiful GST-ready invoices for your business,
+      freelancers and customers. Simple, fast and completely free.
+    </p>
+
+    <div class="buttons">
+      <a class="btn" href="#invoice">Create Invoice</a>
+      <a class="btn secondary" href="#features">View Features</a>
+    </div>
+  </div>
+
+  <div class="invoice-card">
+    <div class="invoice-preview">
+      <div class="invoice-top">
+        <strong>INVOICE</strong>
+        <span>#INV-001</span>
+      </div>
+
+      <hr>
+
+      <p>Dhanvantri Healthcare</p>
+      <p>Medical Equipment & Supplies</p>
+
+      <div class="amount">₹12,450.00</div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="section">
+  <h2>Everything you need.</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>⚡ Fast</h3>
+      <p>Create invoices in seconds.</p>
+    </div>
+
+    <div class="card">
+      <h3>🇮🇳 GST Ready</h3>
+      <p>Designed for Indian businesses.</p>
+    </div>
+
+    <div class="card">
+      <h3>📄 PDF Ready</h3>
+      <p>Print or save your invoices.</p>
+    </div>
+
+    <div class="card">
+      <h3>🔒 Private</h3>
+      <p>Your information stays on your device.</p>
+    </div>
+  </div>
+</section>
+
+<section id="invoice" class="section">
+  <h2>Create Invoice</h2>
+
+  <div class="invoice-form">
+
+    <label>
+      Business Name
+      <input id="business" placeholder="Your business name">
+    </label>
+
+    <label>
+      Customer Name
+      <input id="customer" placeholder="Customer name">
+    </label>
+
+    <label>
+      GSTIN
+      <input id="gstin" placeholder="Optional GSTIN">
+    </label>
+
+    <label>
+      Product / Service
+      <input id="product" placeholder="Product or service">
+    </label>
+
+    <div class="form-row">
+
+      <label>
+        Quantity
+        <input id="quantity" type="number" value="1">
+      </label>
+
+      <label>
+        Price
+        <input id="price" type="number" value="0">
+      </label>
+
+      <label>
+        GST %
+        <input id="gst" type="number" value="18">
+      </label>
+
+    </div>
+
+    <button class="btn" onclick="calculateInvoice()">
+      Calculate Invoice
+    </button>
+
+    <div class="result">
+      <p>Subtotal: <strong id="subtotal">₹0.00</strong></p>
+      <p>GST: <strong id="gstAmount">₹0.00</strong></p>
+      <h2>Total: <strong id="total">₹0.00</strong></h2>
+    </div>
+
+    <button class="btn" onclick="window.print()">
+      🖨 Print / Save PDF
+    </button>
+
+  </div>
+</section>
+
+<section id="invoices" class="section">
+  <h2>Invoices</h2>
+  <p>Your saved invoices will appear here.</p>
+</section>
+
+<section id="customers" class="section">
+  <h2>Customers</h2>
+  <p>Manage your customers from one place.</p>
+</section>
+
+<section id="products" class="section">
+  <h2>Products</h2>
+  <p>Keep your frequently used products ready.</p>
+</section>
+
+<section id="reports" class="section">
+  <h2>Reports</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Total Invoices</h3>
+      <p>0</p>
+    </div>
+
+    <div class="card">
+      <h3>Total Sales</h3>
+      <p>₹0</p>
+    </div>
+
+    <div class="card">
+      <h3>Total GST</h3>
+      <p>₹0</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  © 2026 InvoicePro · Free Invoice Generator
+</footer>
+
+<script src="app.js"></script>
+
+</body>
+</html>
