@@ -1,14 +1,24 @@
 /* =========================================================
-   INVOICEPRO V2
-   Billing + Inventory + Customers + Reports
-   LocalStorage based
-========================================================= */
+   INVOICEPRO APP.JS
+   Version 5
+   - Dashboard
+   - Billing
+   - 5 Invoice Templates
+   - GST / CGST / SGST / IGST
+   - Inventory
+   - Customers
+   - Invoices
+   - Reports
+   - Settings
+   - LocalStorage
+   - Printing
+   ========================================================= */
 
 "use strict";
 
-/* =========================
+/* =========================================================
    STORAGE
-========================= */
+   ========================================================= */
 
 const STORAGE = {
   products: "invoicepro_v2_products",
@@ -17,68 +27,85 @@ const STORAGE = {
   settings: "invoicepro_v2_settings"
 };
 
-let products = loadData(STORAGE.products, []);
-let customers = loadData(STORAGE.customers, []);
-let invoices = loadData(STORAGE.invoices, []);
-
-let settings = loadData(STORAGE.settings, {
-  businessName: "InvoicePro",
+const DEFAULT_SETTINGS = {
+  businessName: "Your Business Name",
   businessAddress: "",
   businessPhone: "",
   businessEmail: "",
   businessGSTIN: "",
   invoicePrefix: "INV-",
-  defaultGST: 5,
-  paymentTerms: "Payment due within 7 days.",
-  notes: "",
-  terms: "Thank you for your business."
-});
+  defaultGST: 18,
+  paymentTerms: "Payment due within 15 days.",
+  defaultNotes: "Thank you for your business.",
+  defaultTerms: "Goods once sold are subject to the agreed terms.",
+  bankName: "",
+  accountName: "",
+  accountNumber: "",
+  ifsc: "",
+  upi: "",
+  logo: "",
+  invoiceTemplate: "professional",
+  taxMode: "auto"
+};
 
-let invoiceItems = [];
+let products = load(STORAGE.products, []);
+let customers = load(STORAGE.customers, []);
+let invoices = load(STORAGE.invoices, []);
+let settings = {
+  ...DEFAULT_SETTINGS,
+  ...load(STORAGE.settings, {})
+};
+
+let currentInvoiceItems = [];
 let editingInvoiceId = null;
+let editingProductId = null;
+let editingCustomerId = null;
+let currentTemplate = settings.invoiceTemplate || "professional";
 
-
-/* =========================
+/* =========================================================
    BASIC HELPERS
-========================= */
+   ========================================================= */
 
-function loadData(key, fallback) {
+function $(id) {
+  return document.getElementById(id);
+}
+
+function load(key, fallback) {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : fallback;
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
   } catch (error) {
     console.error("Storage error:", error);
     return fallback;
   }
 }
 
-function saveData(key, data) {
-  localStorage.setItem(key, JSON.stringify(data));
+function save(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function uid(prefix = "id") {
+  return (
+    prefix +
+    "_" +
+    Date.now() +
+    "_" +
+    Math.random().toString(36).slice(2, 8)
+  );
 }
 
 function money(value) {
-  const number = Number(value) || 0;
+  const n = Number(value) || 0;
 
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2
-  }).format(number);
+  }).format(n);
 }
 
 function number(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-function todayISO() {
-  const date = new Date();
-  return date.toISOString().split("T")[0];
-}
-
-function addDays(dateString, days) {
-  const date = new Date(dateString);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0];
+  return Number(value) || 0;
 }
 
 function escapeHTML(value) {
@@ -90,487 +117,403 @@ function escapeHTML(value) {
     .replace(/'/g, "&#039;");
 }
 
-function uid(prefix = "id") {
-  return prefix + "_" + Date.now() + "_" + Math.random()
-    .toString(36)
-    .substring(2, 8);
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.textContent = value ?? "";
 }
 
-
-/* =========================
-   INITIALIZATION
-========================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-  initializeApp();
-});
-
-function initializeApp() {
-  setDefaultDates();
-  loadSettingsIntoForm();
-  setupNavigation();
-  setupButtons();
-  renderEverything();
-  updateInvoiceNumber();
-  calculateInvoice();
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value ?? "";
 }
 
+function getValue(id) {
+  const el = $(id);
+  return el ? el.value : "";
+}
 
-/* =========================
+function showToast(message) {
+  let toast = $("toast");
+
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(showToast.timer);
+
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+/* =========================================================
    NAVIGATION
-========================= */
+   ========================================================= */
+
+const PAGE_INFO = {
+  dashboard: {
+    title: "Dashboard",
+    subtitle: "Overview of your business"
+  },
+  invoice: {
+    title: "New Invoice",
+    subtitle: "Create a professional invoice"
+  },
+  invoices: {
+    title: "Invoices",
+    subtitle: "Manage your invoices"
+  },
+  inventory: {
+    title: "Inventory",
+    subtitle: "Manage products and stock"
+  },
+  customers: {
+    title: "Customers",
+    subtitle: "Manage your customers"
+  },
+  reports: {
+    title: "Reports",
+    subtitle: "Sales and GST overview"
+  },
+  settings: {
+    title: "Settings",
+    subtitle: "Configure InvoicePro"
+  }
+};
+
+function navigate(page) {
+  document.querySelectorAll(".page").forEach(el => {
+    el.classList.remove("active");
+  });
+
+  const target = $("page-" + page);
+
+  if (target) {
+    target.classList.add("active");
+  }
+
+  document.querySelectorAll("[data-page]").forEach(btn => {
+    btn.classList.toggle(
+      "active",
+      btn.dataset.page === page
+    );
+  });
+
+  const info = PAGE_INFO[page] || PAGE_INFO.dashboard;
+
+  setText("topbarTitle", info.title);
+  setText("topbarSubtitle", info.subtitle);
+
+  if (page === "dashboard") renderDashboard();
+  if (page === "invoices") renderInvoices();
+  if (page === "inventory") renderInventory();
+  if (page === "customers") renderCustomers();
+  if (page === "reports") renderReports();
+  if (page === "invoice") prepareNewInvoice();
+  if (page === "settings") loadSettingsForm();
+}
 
 function setupNavigation() {
-  document.querySelectorAll(".nav-link").forEach(link => {
-    link.addEventListener("click", event => {
-      event.preventDefault();
-
-      const target = link.dataset.page;
-
-      if (target) {
-        showPage(target);
-      }
+  document.querySelectorAll("[data-page]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      navigate(btn.dataset.page);
     });
   });
 }
 
-function showPage(pageName) {
-  document.querySelectorAll(".page").forEach(page => {
-    page.classList.remove("active-page");
-  });
-
-  const page = document.getElementById(pageName);
-
-  if (page) {
-    page.classList.add("active-page");
-  }
-
-  document.querySelectorAll(".nav-link").forEach(link => {
-    link.classList.remove("active");
-
-    if (link.dataset.page === pageName) {
-      link.classList.add("active");
-    }
-  });
-
-  const titles = {
-    dashboard: ["Dashboard", "Your business overview"],
-    invoice: ["New Invoice", "Create a professional invoice"],
-    invoices: ["Invoices", "Manage your invoices"],
-    inventory: ["Inventory", "Manage products and stock"],
-    customers: ["Customers", "Manage your customers"],
-    reports: ["Reports", "Sales and business insights"],
-    settings: ["Settings", "Configure InvoicePro"]
-  };
-
-  const title = titles[pageName];
-
-  if (title) {
-    const heading = document.getElementById("topbarTitle");
-    const subtitle = document.getElementById("topbarSubtitle");
-
-    if (heading) heading.textContent = title[0];
-    if (subtitle) subtitle.textContent = title[1];
-  }
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-
-  renderEverything();
-}
-
-
-/* =========================
-   BUTTONS
-========================= */
-
-function setupButtons() {
-
-  const newInvoiceButtons = [
-    "newInvoiceBtn",
-    "createInvoiceBtn",
-    "dashboardCreateInvoice"
-  ];
-
-  newInvoiceButtons.forEach(id => {
-    const button = document.getElementById(id);
-
-    if (button) {
-      button.addEventListener("click", () => {
-        clearInvoice();
-        showPage("invoice");
-      });
-    }
-  });
-
-  const addItem = document.getElementById("addItemBtn");
-
-  if (addItem) {
-    addItem.addEventListener("click", addInvoiceItem);
-  }
-
-  const saveInvoice = document.getElementById("saveInvoiceBtn");
-
-  if (saveInvoice) {
-    saveInvoice.addEventListener("click", saveInvoiceData);
-  }
-
-  const printInvoice = document.getElementById("printInvoiceBtn");
-
-  if (printInvoice) {
-    printInvoice.addEventListener("click", () => {
-      updatePrintableInvoice();
-      window.print();
-    });
-  }
-
-  const clearBtn = document.getElementById("clearInvoiceBtn");
-
-  if (clearBtn) {
-    clearBtn.addEventListener("click", clearInvoice);
-  }
-
-  const productSelect = document.getElementById("productSelect");
-
-  if (productSelect) {
-    productSelect.addEventListener("change", productSelected);
-  }
-
-  const customerSelect = document.getElementById("customerSelect");
-
-  if (customerSelect) {
-    customerSelect.addEventListener("change", customerSelected);
-  }
-
-  const itemInputs = [
-    "itemQty",
-    "itemRate",
-    "itemDiscount",
-    "itemGST"
-  ];
-
-  itemInputs.forEach(id => {
-    const element = document.getElementById(id);
-
-    if (element) {
-      element.addEventListener("input", () => {
-        updateItemPreview();
-      });
-    }
-  });
-
-  setupSearches();
-  setupModals();
-}
-
-
-/* =========================
-   DATES
-========================= */
-
-function setDefaultDates() {
-  const invoiceDate = document.getElementById("invoiceDate");
-  const dueDate = document.getElementById("dueDate");
-
-  if (invoiceDate && !invoiceDate.value) {
-    invoiceDate.value = todayISO();
-  }
-
-  if (dueDate && !dueDate.value) {
-    dueDate.value = addDays(todayISO(), 7);
-  }
-}
-
-
-/* =========================
+/* =========================================================
    INVOICE NUMBER
-========================= */
+   ========================================================= */
 
 function getNextInvoiceNumber() {
   const prefix = settings.invoicePrefix || "INV-";
 
   let highest = 0;
 
-  invoices.forEach(invoice => {
-    const match = String(invoice.invoiceNumber || "")
-      .match(/(\d+)$/);
+  invoices.forEach(inv => {
+    const match = String(inv.number || "").match(/(\d+)$/);
 
     if (match) {
-      highest = Math.max(highest, Number(match[1]));
+      highest = Math.max(
+        highest,
+        parseInt(match[1], 10)
+      );
     }
   });
 
-  return prefix + String(highest + 1).padStart(4, "0");
+  return (
+    prefix +
+    String(highest + 1).padStart(4, "0")
+  );
 }
 
-function updateInvoiceNumber() {
-  const input = document.getElementById("invoiceNumber");
+/* =========================================================
+   DATES
+   ========================================================= */
 
-  if (input && !editingInvoiceId) {
-    input.value = getNextInvoiceNumber();
-  }
+function todayISO() {
+  const d = new Date();
+
+  const local = new Date(
+    d.getTime() -
+      d.getTimezoneOffset() * 60000
+  );
+
+  return local.toISOString().slice(0, 10);
 }
 
+function addDays(dateString, days) {
+  const d = new Date(dateString + "T00:00:00");
 
-/* =========================
-   CUSTOMER
-========================= */
+  d.setDate(d.getDate() + days);
 
-function customerSelected() {
-  const select = document.getElementById("customerSelect");
+  return d.toISOString().slice(0, 10);
+}
+
+/* =========================================================
+   NEW INVOICE
+   ========================================================= */
+
+function prepareNewInvoice() {
+  if (editingInvoiceId) return;
+
+  setValue("invoiceNumber", getNextInvoiceNumber());
+  setValue("invoiceDate", todayISO());
+  setValue("dueDate", addDays(todayISO(), 15));
+
+  setValue(
+    "invoiceNotes",
+    settings.defaultNotes
+  );
+
+  setValue(
+    "invoiceTerms",
+    settings.defaultTerms
+  );
+
+  setValue(
+    "paymentStatus",
+    "Pending"
+  );
+
+  setValue(
+    "paymentMethod",
+    "Bank Transfer"
+  );
+
+  currentInvoiceItems = [];
+
+  populateCustomerSelect();
+  populateProductSelect();
+
+  clearCustomerFields();
+  renderInvoiceItems();
+  calculateInvoice();
+
+  setTemplate(currentTemplate);
+}
+
+/* =========================================================
+   CUSTOMER SELECT
+   ========================================================= */
+
+function populateCustomerSelect() {
+  const select = $("customerSelect");
 
   if (!select) return;
 
-  const customer = customers.find(c => c.id === select.value);
+  const oldValue = select.value;
 
-  if (!customer) return;
+  select.innerHTML =
+    `<option value="">Select customer</option>` +
+    customers
+      .map(c =>
+        `<option value="${escapeHTML(c.id)}">
+          ${escapeHTML(c.name)}
+        </option>`
+      )
+      .join("");
+
+  if (oldValue) {
+    select.value = oldValue;
+  }
+}
+
+function customerSelected() {
+  const id = getValue("customerSelect");
+
+  const customer = customers.find(
+    c => c.id === id
+  );
+
+  if (!customer) {
+    clearCustomerFields();
+    return;
+  }
 
   setValue("customerName", customer.name);
   setValue("customerGSTIN", customer.gstin);
   setValue("customerAddress", customer.address);
   setValue("customerPhone", customer.phone);
   setValue("customerEmail", customer.email);
+
+  calculateInvoice();
 }
 
-function saveCurrentCustomerIfNeeded() {
-  const name = getValue("customerName").trim();
-
-  if (!name) return null;
-
-  const gstin = getValue("customerGSTIN").trim();
-  const address = getValue("customerAddress").trim();
-  const phone = getValue("customerPhone").trim();
-  const email = getValue("customerEmail").trim();
-
-  let customer = customers.find(c =>
-    c.name.toLowerCase() === name.toLowerCase() &&
-    (phone ? c.phone === phone : true)
-  );
-
-  if (customer) {
-    customer.gstin = gstin;
-    customer.address = address;
-    customer.phone = phone;
-    customer.email = email;
-  } else {
-    customer = {
-      id: uid("cust"),
-      name,
-      gstin,
-      address,
-      phone,
-      email,
-      createdAt: new Date().toISOString()
-    };
-
-    customers.push(customer);
-  }
-
-  saveData(STORAGE.customers, customers);
-
-  return customer;
+function clearCustomerFields() {
+  setValue("customerName", "");
+  setValue("customerGSTIN", "");
+  setValue("customerAddress", "");
+  setValue("customerPhone", "");
+  setValue("customerEmail", "");
 }
 
+/* =========================================================
+   PRODUCT SELECT
+   ========================================================= */
 
-/* =========================
-   PRODUCT
-========================= */
-
-function productSelected() {
-  const select = document.getElementById("productSelect");
+function populateProductSelect() {
+  const select = $("productSelect");
 
   if (!select) return;
 
-  const product = products.find(p => p.id === select.value);
+  select.innerHTML =
+    `<option value="">Select product</option>` +
+    products
+      .map(p =>
+        `<option value="${escapeHTML(p.id)}">
+          ${escapeHTML(p.name)}
+        </option>`
+      )
+      .join("");
+}
+
+function productSelected() {
+  const id = getValue("productSelect");
+
+  const product = products.find(
+    p => p.id === id
+  );
 
   if (!product) return;
 
-  setValue("itemHSN", product.hsn);
-  setValue("itemRate", product.sellingPrice);
-  setValue("itemGST", product.gst);
+  setValue("itemHSN", product.hsn || "");
+  setValue("itemRate", product.sellingPrice || 0);
+  setValue(
+    "itemGST",
+    product.gst ?? settings.defaultGST
+  );
+  setValue("itemQty", 1);
+  setValue("itemDiscount", 0);
 }
 
+/* =========================================================
+   ADD INVOICE ITEM
+   ========================================================= */
+
 function addInvoiceItem() {
-
   const productId = getValue("productSelect");
-  const product = products.find(p => p.id === productId);
+  const product = products.find(
+    p => p.id === productId
+  );
 
-  const name = product
-    ? product.name
-    : getValue("productSelectText") || "Item";
+  const name =
+    product?.name ||
+    getValue("itemName");
 
-  const hsn = getValue("itemHSN");
-  const qty = Number(getValue("itemQty")) || 1;
-  const rate = Number(getValue("itemRate")) || 0;
-  const discount = Number(getValue("itemDiscount")) || 0;
-  const gst = Number(getValue("itemGST")) || 0;
+  const hsn =
+    getValue("itemHSN") ||
+    product?.hsn ||
+    "";
 
-  if (qty <= 0) {
-    alert("Quantity must be greater than 0.");
+  const qty = Math.max(
+    0.01,
+    number(getValue("itemQty")) || 1
+  );
+
+  const rate = Math.max(
+    0,
+    number(getValue("itemRate"))
+  );
+
+  const discount = Math.min(
+    100,
+    Math.max(
+      0,
+      number(getValue("itemDiscount"))
+    )
+  );
+
+  const gst = Math.max(
+    0,
+    number(getValue("itemGST"))
+  );
+
+  if (!name) {
+    showToast("Please select or enter a product.");
     return;
   }
 
   if (rate < 0) {
-    alert("Rate cannot be negative.");
+    showToast("Invalid rate.");
     return;
   }
 
-  const item = {
+  currentInvoiceItems.push({
     id: uid("item"),
-    productId: product ? product.id : "",
+    productId: product?.id || "",
     name,
     hsn,
     qty,
     rate,
     discount,
     gst
-  };
-
-  invoiceItems.push(item);
+  });
 
   renderInvoiceItems();
   calculateInvoice();
-  clearItemEntry();
-}
 
-function clearItemEntry() {
   setValue("productSelect", "");
   setValue("itemHSN", "");
   setValue("itemQty", 1);
   setValue("itemRate", "");
   setValue("itemDiscount", 0);
-  setValue("itemGST", settings.defaultGST || 5);
+  setValue("itemGST", settings.defaultGST);
 }
 
-function updateItemPreview() {
-  /* Keeps the current entry ready for adding.
-     Main invoice calculation happens after adding. */
+/* =========================================================
+   REMOVE ITEM
+   ========================================================= */
+
+function removeInvoiceItem(id) {
+  currentInvoiceItems =
+    currentInvoiceItems.filter(
+      item => item.id !== id
+    );
+
+  renderInvoiceItems();
+  calculateInvoice();
 }
 
-function renderProductSelect() {
-  const select = document.getElementById("productSelect");
-
-  if (!select) return;
-
-  const oldValue = select.value;
-
-  select.innerHTML = `
-    <option value="">Select product</option>
-    ${products.map(product => `
-      <option value="${escapeHTML(product.id)}">
-        ${escapeHTML(product.name)}
-        ${product.stock !== undefined ? ` - Stock: ${product.stock}` : ""}
-      </option>
-    `).join("")}
-  `;
-
-  if (products.some(p => p.id === oldValue)) {
-    select.value = oldValue;
-  }
-}
-
-
-/* =========================
-   INVOICE ITEMS
-========================= */
-
-function calculateItem(item) {
-
-  const gross = number(item.qty * item.rate);
-
-  const discountAmount = number(
-    gross * (Number(item.discount) || 0) / 100
-  );
-
-  const taxable = number(gross - discountAmount);
-
-  const gstAmount = number(
-    taxable * (Number(item.gst) || 0) / 100
-  );
-
-  const cgst = number(gstAmount / 2);
-  const sgst = number(gstAmount / 2);
-
-  const total = number(taxable + gstAmount);
-
-  return {
-    gross,
-    discountAmount,
-    taxable,
-    gstAmount,
-    cgst,
-    sgst,
-    total
-  };
-}
-
-function calculateInvoice() {
-
-  let subtotal = 0;
-  let discount = 0;
-  let taxable = 0;
-  let cgst = 0;
-  let sgst = 0;
-  let gst = 0;
-  let grandTotal = 0;
-
-  invoiceItems.forEach(item => {
-
-    const result = calculateItem(item);
-
-    subtotal += result.gross;
-    discount += result.discountAmount;
-    taxable += result.taxable;
-    cgst += result.cgst;
-    sgst += result.sgst;
-    gst += result.gstAmount;
-    grandTotal += result.total;
-  });
-
-  subtotal = number(subtotal);
-  discount = number(discount);
-  taxable = number(taxable);
-  cgst = number(cgst);
-  sgst = number(sgst);
-  gst = number(gst);
-  grandTotal = number(grandTotal);
-
-  setText("summarySubtotal", money(subtotal));
-  setText("summaryDiscount", money(discount));
-  setText("summaryTaxable", money(taxable));
-  setText("summaryCGST", money(cgst));
-  setText("summarySGST", money(sgst));
-  setText("summaryGST", money(gst));
-  setText("summaryGrandTotal", money(grandTotal));
-
-  const words = numberToIndianWords(grandTotal);
-
-  setText("amountInWords", words);
-
-  return {
-    subtotal,
-    discount,
-    taxable,
-    cgst,
-    sgst,
-    gst,
-    grandTotal
-  };
-}
+/* =========================================================
+   RENDER INVOICE ITEMS
+   ========================================================= */
 
 function renderInvoiceItems() {
+  const body = $("invoiceItemsBody");
 
-  const tbody = document.getElementById("invoiceItemsBody");
+  if (!body) return;
 
-  if (!tbody) return;
-
-  if (!invoiceItems.length) {
-
-    tbody.innerHTML = `
-      <tr class="empty-row">
-        <td colspan="8">
+  if (!currentInvoiceItems.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
           No items added yet.
         </td>
       </tr>
@@ -579,1539 +522,229 @@ function renderInvoiceItems() {
     return;
   }
 
-  tbody.innerHTML = invoiceItems.map((item, index) => {
+  body.innerHTML =
+    currentInvoiceItems
+      .map((item, index) => {
+        const gross =
+          item.qty * item.rate;
 
-    const result = calculateItem(item);
+        const discountAmount =
+          gross * item.discount / 100;
 
-    return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${escapeHTML(item.name)}</td>
-        <td>${escapeHTML(item.hsn || "-")}</td>
-        <td>${item.qty}</td>
-        <td>${money(item.rate)}</td>
-        <td>${item.discount}%</td>
-        <td>${item.gst}%</td>
-        <td>${money(result.total)}</td>
-        <td>
-          <button
-            class="delete-item"
-            onclick="removeInvoiceItem('${item.id}')">
-            ×
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+        const taxable =
+          gross - discountAmount;
+
+        const gstAmount =
+          taxable * item.gst / 100;
+
+        const total =
+          taxable + gstAmount;
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+
+            <td>
+              <strong>
+                ${escapeHTML(item.name)}
+              </strong>
+            </td>
+
+            <td>
+              ${escapeHTML(item.hsn || "-")}
+            </td>
+
+            <td>
+              ${item.qty}
+            </td>
+
+            <td>
+              ${money(item.rate)}
+            </td>
+
+            <td>
+              ${item.discount}%
+            </td>
+
+            <td>
+              ${money(total)}
+            </td>
+
+            <td>
+              <button
+                class="btn btn-danger btn-sm"
+                onclick="removeInvoiceItem('${item.id}')">
+                ✕
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
 }
 
-function removeInvoiceItem(id) {
+/* =========================================================
+   GST MODE
+   ========================================================= */
 
-  invoiceItems = invoiceItems.filter(item => item.id !== id);
+function getTaxMode(customerGSTIN = "") {
+  const mode =
+    settings.taxMode || "auto";
 
-  renderInvoiceItems();
-  calculateInvoice();
-}
-
-
-/* =========================
-   SAVE INVOICE
-========================= */
-
-function saveInvoiceData() {
-
-  if (!invoiceItems.length) {
-    alert("Add at least one product to the invoice.");
-    return;
+  if (mode === "intra") {
+    return "intra";
   }
 
-  const customer = saveCurrentCustomerIfNeeded();
-
-  const totals = calculateInvoice();
-
-  const invoiceNumber =
-    getValue("invoiceNumber") || getNextInvoiceNumber();
-
-  const invoiceDate =
-    getValue("invoiceDate") || todayISO();
-
-  const dueDate =
-    getValue("dueDate") || addDays(invoiceDate, 7);
-
-  const paymentStatus =
-    getValue("paymentStatus") || "pending";
-
-  const paymentMethod =
-    getValue("paymentMethod") || "Cash";
-
-  const invoice = {
-    id: editingInvoiceId || uid("inv"),
-    invoiceNumber,
-    invoiceDate,
-    dueDate,
-
-    customer: customer
-      ? {
-          id: customer.id,
-          name: customer.name,
-          gstin: customer.gstin,
-          address: customer.address,
-          phone: customer.phone,
-          email: customer.email
-        }
-      : {
-          name: getValue("customerName"),
-          gstin: getValue("customerGSTIN"),
-          address: getValue("customerAddress"),
-          phone: getValue("customerPhone"),
-          email: getValue("customerEmail")
-        },
-
-    items: JSON.parse(JSON.stringify(invoiceItems)),
-
-    totals,
-
-    paymentStatus,
-    paymentMethod,
-
-    notes: getValue("invoiceNotes"),
-    terms: getValue("invoiceTerms"),
-
-    createdAt: new Date().toISOString()
-  };
-
-  if (editingInvoiceId) {
-
-    const oldIndex =
-      invoices.findIndex(i => i.id === editingInvoiceId);
-
-    if (oldIndex !== -1) {
-      invoices[oldIndex] = invoice;
-    }
-
-  } else {
-
-    invoices.push(invoice);
-
-    deductInventory(invoice.items);
+  if (mode === "inter") {
+    return "inter";
   }
 
-  saveData(STORAGE.invoices, invoices);
-  saveData(STORAGE.products, products);
-  saveData(STORAGE.customers, customers);
-
-  editingInvoiceId = null;
-
-  alert("Invoice saved successfully.");
-
-  updateInvoiceNumber();
-  renderEverything();
-
-  showPage("invoices");
-}
-
-
-/* =========================
-   INVENTORY DEDUCTION
-========================= */
-
-function deductInventory(items) {
-
-  items.forEach(item => {
-
-    if (!item.productId) return;
-
-    const product =
-      products.find(p => p.id === item.productId);
-
-    if (!product) return;
-
-    product.stock =
-      number(product.stock || 0) -
-      number(item.qty);
-
-    if (product.stock < 0) {
-      product.stock = 0;
-    }
-  });
-}
-
-
-/* =========================
-   CLEAR INVOICE
-========================= */
-
-function clearInvoice() {
-
-  editingInvoiceId = null;
-  invoiceItems = [];
-
-  const fields = [
-    "customerName",
-    "customerGSTIN",
-    "customerAddress",
-    "customerPhone",
-    "customerEmail",
-    "invoiceNotes",
-    "invoiceTerms",
-    "itemHSN",
-    "itemRate"
-  ];
-
-  fields.forEach(id => setValue(id, ""));
-
-  setValue("customerSelect", "");
-  setValue("productSelect", "");
-  setValue("itemQty", 1);
-  setValue("itemDiscount", 0);
-  setValue("itemGST", settings.defaultGST || 5);
-  setValue("paymentStatus", "pending");
-  setValue("paymentMethod", "Cash");
-
-  setValue("invoiceDate", todayISO());
-  setValue("dueDate", addDays(todayISO(), 7));
-
-  updateInvoiceNumber();
-
-  renderInvoiceItems();
-  calculateInvoice();
-}
-
-
-/* =========================
-   INVOICE HISTORY
-========================= */
-
-function renderInvoices() {
-
-  const tbody = document.getElementById("invoicesTableBody");
-
-  if (!tbody) return;
-
-  if (!invoices.length) {
-
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="empty-state">
-          No invoices created yet.
-        </td>
-      </tr>
-    `;
-
-    return;
-  }
-
-  const search =
-    (getValue("invoiceSearch") || "").toLowerCase();
-
-  const status =
-    getValue("invoiceStatusFilter") || "all";
-
-  const filtered = invoices.filter(invoice => {
-
-    const text = [
-      invoice.invoiceNumber,
-      invoice.customer?.name
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const searchMatch =
-      !search || text.includes(search);
-
-    const statusMatch =
-      status === "all" ||
-      invoice.paymentStatus === status;
-
-    return searchMatch && statusMatch;
-  });
-
-  if (!filtered.length) {
-
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8">
-          <div class="empty-state small">
-            No matching invoices.
-          </div>
-        </td>
-      </tr>
-    `;
-
-    return;
-  }
-
-  tbody.innerHTML = filtered
-    .slice()
-    .reverse()
-    .map(invoice => {
-
-      const status = invoice.paymentStatus || "pending";
-
-      return `
-        <tr>
-
-          <td>
-            <strong>
-              ${escapeHTML(invoice.invoiceNumber)}
-            </strong>
-          </td>
-
-          <td>
-            ${escapeHTML(invoice.invoiceDate)}
-          </td>
-
-          <td>
-            ${escapeHTML(invoice.customer?.name || "Walk-in Customer")}
-          </td>
-
-          <td>
-            ${money(invoice.totals?.taxable || 0)}
-          </td>
-
-          <td>
-            ${money(invoice.totals?.gst || 0)}
-          </td>
-
-          <td>
-            <strong>
-              ${money(invoice.totals?.grandTotal || 0)}
-            </strong>
-          </td>
-
-          <td>
-            <span class="badge ${escapeHTML(status)}">
-              ${escapeHTML(status)}
-            </span>
-          </td>
-
-          <td>
-
-            <button
-              class="action-btn"
-              onclick="printSavedInvoice('${invoice.id}')">
-              Print
-            </button>
-
-            <button
-              class="action-btn danger"
-              onclick="deleteInvoice('${invoice.id}')">
-              Delete
-            </button>
-
-          </td>
-
-        </tr>
-      `;
-    }).join("");
-}
-
-function deleteInvoice(id) {
-
-  const invoice =
-    invoices.find(i => i.id === id);
-
-  if (!invoice) return;
-
-  const confirmed =
-    confirm(
-      `Delete ${invoice.invoiceNumber}?`
-    );
-
-  if (!confirmed) return;
-
-  invoices =
-    invoices.filter(i => i.id !== id);
-
-  saveData(STORAGE.invoices, invoices);
-
-  renderEverything();
-}
-
-function printSavedInvoice(id) {
-
-  const invoice =
-    invoices.find(i => i.id === id);
-
-  if (!invoice) return;
-
-  populatePrintInvoice(invoice);
-
-  window.print();
-}
-
-
-/* =========================
-   INVENTORY
-========================= */
-
-function renderInventory() {
-
-  const tbody =
-    document.getElementById("inventoryTableBody");
-
-  if (!tbody) return;
-
-  const search =
-    (getValue("inventorySearch") || "").toLowerCase();
-
-  const category =
-    getValue("inventoryCategoryFilter") || "all";
-
-  const filtered = products.filter(product => {
-
-    const text = [
-      product.name,
-      product.sku,
-      product.category,
-      product.hsn
-    ].join(" ").toLowerCase();
-
-    const searchMatch =
-      !search || text.includes(search);
-
-    const categoryMatch =
-      category === "all" ||
-      product.category === category;
-
-    return searchMatch && categoryMatch;
-  });
-
-  if (!filtered.length) {
-
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="9">
-          <div class="empty-state">
-            <div class="empty-icon">+</div>
-            <h3>No products</h3>
-            <p>Add your first product to start tracking inventory.</p>
-          </div>
-        </td>
-      </tr>
-    `;
-
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(product => {
-
-    const stock = Number(product.stock) || 0;
-    const limit = Number(product.lowStock) || 0;
-
-    const low = stock <= limit;
-
-    return `
-      <tr>
-
-        <td>
-          <strong>${escapeHTML(product.name)}</strong>
-        </td>
-
-        <td>
-          ${escapeHTML(product.sku || "-")}
-        </td>
-
-        <td>
-          ${escapeHTML(product.category || "-")}
-        </td>
-
-        <td>
-          ${escapeHTML(product.hsn || "-")}
-        </td>
-
-        <td>
-          ${money(product.purchasePrice)}
-        </td>
-
-        <td>
-          ${money(product.sellingPrice)}
-        </td>
-
-        <td>
-          <strong class="${low ? "low-stock" : ""}">
-            ${stock}
-          </strong>
-        </td>
-
-        <td>
-          ${product.gst}%
-        </td>
-
-        <td>
-
-          <button
-            class="action-btn"
-            onclick="editProduct('${product.id}')">
-            Edit
-          </button>
-
-          <button
-            class="action-btn danger"
-            onclick="deleteProduct('${product.id}')">
-            Delete
-          </button>
-
-        </td>
-
-      </tr>
-    `;
-  }).join("");
-
-  updateInventoryStats();
-}
-
-function updateInventoryStats() {
-
-  const totalProducts = products.length;
-
-  const totalStock =
-    products.reduce(
-      (sum, p) => sum + (Number(p.stock) || 0),
-      0
-    );
-
-  const lowStock =
-    products.filter(p =>
-      Number(p.stock) <= Number(p.lowStock || 0)
-    ).length;
-
-  const stockValue =
-    products.reduce(
-      (sum, p) =>
-        sum +
-        (Number(p.stock) || 0) *
-        (Number(p.purchasePrice) || 0),
-      0
-    );
-
-  setText("inventoryProductCount", totalProducts);
-  setText("inventoryStockCount", totalStock);
-  setText("inventoryLowStockCount", lowStock);
-  setText("inventoryStockValue", money(stockValue));
-}
-
-
-/* =========================
-   PRODUCT MODAL
-========================= */
-
-function setupModals() {
-
-  document.querySelectorAll(".close-btn").forEach(button => {
-
-    button.addEventListener("click", () => {
-      closeAllModals();
-    });
-
-  });
-
-  document.querySelectorAll(".modal").forEach(modal => {
-
-    modal.addEventListener("click", event => {
-
-      if (event.target === modal) {
-        closeAllModals();
-      }
-
-    });
-
-  });
-}
-
-function openProductModal(id = null) {
-
-  const modal =
-    document.getElementById("productModal");
-
-  if (!modal) return;
-
-  modal.classList.add("show");
-
-  clearProductForm();
-
-  if (id) {
-    const product = products.find(p => p.id === id);
-
-    if (!product) return;
-
-    setValue("productEditId", product.id);
-    setValue("productName", product.name);
-    setValue("productSKU", product.sku);
-    setValue("productCategory", product.category);
-    setValue("productHSN", product.hsn);
-    setValue("productPurchasePrice", product.purchasePrice);
-    setValue("productSellingPrice", product.sellingPrice);
-    setValue("productGST", product.gst);
-    setValue("productStock", product.stock);
-    setValue("productLowStock", product.lowStock);
-  }
-}
-
-function clearProductForm() {
-
-  [
-    "productEditId",
-    "productName",
-    "productSKU",
-    "productCategory",
-    "productHSN",
-    "productPurchasePrice",
-    "productSellingPrice"
-  ].forEach(id => setValue(id, ""));
-
-  setValue("productGST", settings.defaultGST || 5);
-  setValue("productStock", 0);
-  setValue("productLowStock", 5);
-}
-
-function saveProduct() {
-
-  const name =
-    getValue("productName").trim();
-
-  if (!name) {
-    alert("Product name is required.");
-    return;
-  }
-
-  const data = {
-    name,
-    sku: getValue("productSKU"),
-    category: getValue("productCategory"),
-    hsn: getValue("productHSN"),
-    purchasePrice: Number(getValue("productPurchasePrice")) || 0,
-    sellingPrice: Number(getValue("productSellingPrice")) || 0,
-    gst: Number(getValue("productGST")) || 0,
-    stock: Number(getValue("productStock")) || 0,
-    lowStock: Number(getValue("productLowStock")) || 0
-  };
-
-  const editId =
-    getValue("productEditId");
-
-  if (editId) {
-
-    const index =
-      products.findIndex(p => p.id === editId);
-
-    if (index !== -1) {
-      products[index] = {
-        ...products[index],
-        ...data
-      };
-    }
-
-  } else {
-
-    products.push({
-      id: uid("prod"),
-      ...data,
-      createdAt: new Date().toISOString()
-    });
-
-  }
-
-  saveData(STORAGE.products, products);
-
-  closeAllModals();
-  renderEverything();
-}
-
-function editProduct(id) {
-  openProductModal(id);
-}
-
-function deleteProduct(id) {
-
-  const product =
-    products.find(p => p.id === id);
-
-  if (!product) return;
-
-  if (!confirm(`Delete ${product.name}?`)) {
-    return;
-  }
-
-  products =
-    products.filter(p => p.id !== id);
-
-  saveData(STORAGE.products, products);
-
-  renderEverything();
-}
-
-
-/* =========================
-   CUSTOMER LIST
-========================= */
-
-function renderCustomers() {
-
-  const tbody =
-    document.getElementById("customersTableBody");
-
-  if (!tbody) return;
-
-  const search =
-    (getValue("customerSearch") || "").toLowerCase();
-
-  const filtered =
-    customers.filter(customer => {
-
-      const text = [
-        customer.name,
-        customer.phone,
-        customer.email,
-        customer.gstin
-      ].join(" ").toLowerCase();
-
-      return !search || text.includes(search);
-    });
-
-  if (!filtered.length) {
-
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7">
-          <div class="empty-state">
-            <div class="empty-icon">+</div>
-            <h3>No customers</h3>
-            <p>Your saved customers will appear here.</p>
-          </div>
-        </td>
-      </tr>
-    `;
-
-    return;
-  }
-
-  tbody.innerHTML =
-    filtered.map(customer => {
-
-      const customerInvoices =
-        invoices.filter(i =>
-          i.customer?.id === customer.id ||
-          i.customer?.name === customer.name
-        );
-
-      const total =
-        customerInvoices.reduce(
-          (sum, invoice) =>
-            sum + Number(invoice.totals?.grandTotal || 0),
-          0
-        );
-
-      return `
-        <tr>
-
-          <td>
-            <strong>${escapeHTML(customer.name)}</strong>
-          </td>
-
-          <td>
-            ${escapeHTML(customer.phone || "-")}
-          </td>
-
-          <td>
-            ${escapeHTML(customer.email || "-")}
-          </td>
-
-          <td>
-            ${escapeHTML(customer.gstin || "-")}
-          </td>
-
-          <td>
-            ${customerInvoices.length}
-          </td>
-
-          <td>
-            ${money(total)}
-          </td>
-
-          <td>
-            <button
-              class="action-btn"
-              onclick="editCustomer('${customer.id}')">
-              Edit
-            </button>
-
-            <button
-              class="action-btn danger"
-              onclick="deleteCustomer('${customer.id}')">
-              Delete
-            </button>
-          </td>
-
-        </tr>
-      `;
-    }).join("");
-}
-
-
-/* =========================
-   CUSTOMER MODAL
-========================= */
-
-function openCustomerModal(id = null) {
-
-  const modal =
-    document.getElementById("customerModal");
-
-  if (!modal) return;
-
-  modal.classList.add("show");
-
-  clearCustomerForm();
-
-  if (id) {
-
-    const customer =
-      customers.find(c => c.id === id);
-
-    if (!customer) return;
-
-    setValue("customerEditId", customer.id);
-    setValue("modalCustomerName", customer.name);
-    setValue("modalCustomerGSTIN", customer.gstin);
-    setValue("modalCustomerAddress", customer.address);
-    setValue("modalCustomerPhone", customer.phone);
-    setValue("modalCustomerEmail", customer.email);
-  }
-}
-
-function clearCustomerForm() {
-
-  [
-    "customerEditId",
-    "modalCustomerName",
-    "modalCustomerGSTIN",
-    "modalCustomerAddress",
-    "modalCustomerPhone",
-    "modalCustomerEmail"
-  ].forEach(id => setValue(id, ""));
-}
-
-function saveCustomer() {
-
-  const name =
-    getValue("modalCustomerName").trim();
-
-  if (!name) {
-    alert("Customer name is required.");
-    return;
-  }
-
-  const data = {
-    name,
-    gstin: getValue("modalCustomerGSTIN"),
-    address: getValue("modalCustomerAddress"),
-    phone: getValue("modalCustomerPhone"),
-    email: getValue("modalCustomerEmail")
-  };
-
-  const editId =
-    getValue("customerEditId");
-
-  if (editId) {
-
-    const index =
-      customers.findIndex(c => c.id === editId);
-
-    if (index !== -1) {
-      customers[index] = {
-        ...customers[index],
-        ...data
-      };
-    }
-
-  } else {
-
-    customers.push({
-      id: uid("cust"),
-      ...data,
-      createdAt: new Date().toISOString()
-    });
-
-  }
-
-  saveData(STORAGE.customers, customers);
-
-  closeAllModals();
-  renderEverything();
-}
-
-function editCustomer(id) {
-  openCustomerModal(id);
-}
-
-function deleteCustomer(id) {
-
-  const customer =
-    customers.find(c => c.id === id);
-
-  if (!customer) return;
-
-  if (!confirm(`Delete ${customer.name}?`)) {
-    return;
-  }
-
-  customers =
-    customers.filter(c => c.id !== id);
-
-  saveData(STORAGE.customers, customers);
-
-  renderEverything();
-}
-
-
-/* =========================
-   CUSTOMER SELECT
-========================= */
-
-function renderCustomerSelect() {
-
-  const select =
-    document.getElementById("customerSelect");
-
-  if (!select) return;
-
-  const oldValue = select.value;
-
-  select.innerHTML = `
-    <option value="">Walk-in Customer</option>
-
-    ${customers.map(customer => `
-      <option value="${escapeHTML(customer.id)}">
-        ${escapeHTML(customer.name)}
-      </option>
-    `).join("")}
-  `;
-
-  if (customers.some(c => c.id === oldValue)) {
-    select.value = oldValue;
-  }
-}
-
-
-/* =========================
-   DASHBOARD
-========================= */
-
-function renderDashboard() {
-
-  const totalSales =
-    invoices.reduce(
-      (sum, invoice) =>
-        sum + Number(invoice.totals?.grandTotal || 0),
-      0
-    );
-
-  const paid =
-    invoices.filter(i =>
-      i.paymentStatus === "paid"
-    ).length;
-
-  const pending =
-    invoices.filter(i =>
-      i.paymentStatus === "pending"
-    ).length;
-
-  const lowStock =
-    products.filter(p =>
-      Number(p.stock) <= Number(p.lowStock || 0)
-    ).length;
-
-  setText("dashboardSales", money(totalSales));
-  setText("dashboardInvoices", invoices.length);
-  setText("dashboardCustomers", customers.length);
-  setText("dashboardLowStock", lowStock);
-
-  renderRecentInvoices();
-  renderLowStockProducts();
-}
-
-function renderRecentInvoices() {
-
-  const container =
-    document.getElementById("recentInvoices");
-
-  if (!container) return;
-
-  const recent =
-    invoices.slice()
-      .sort((a, b) =>
-        new Date(b.createdAt) -
-        new Date(a.createdAt)
-      )
-      .slice(0, 5);
-
-  if (!recent.length) {
-
-    container.innerHTML = `
-      <div class="empty-state small">
-        No invoices yet.
-      </div>
-    `;
-
-    return;
-  }
-
-  container.innerHTML = recent.map(invoice => `
-    <div class="recent-row">
-
-      <div>
-        <strong>
-          ${escapeHTML(invoice.invoiceNumber)}
-        </strong>
-
-        <small>
-          ${escapeHTML(invoice.customer?.name || "Walk-in Customer")}
-        </small>
-      </div>
-
-      <strong>
-        ${money(invoice.totals?.grandTotal || 0)}
-      </strong>
-
-    </div>
-  `).join("");
-}
-
-function renderLowStockProducts() {
-
-  const container =
-    document.getElementById("lowStockProducts");
-
-  if (!container) return;
-
-  const low =
-    products.filter(p =>
-      Number(p.stock) <= Number(p.lowStock || 0)
-    );
-
-  if (!low.length) {
-
-    container.innerHTML = `
-      <div class="empty-state small">
-        <h3>Stock looks healthy</h3>
-        <p>No low-stock products.</p>
-      </div>
-    `;
-
-    return;
-  }
-
-  container.innerHTML = low.map(product => `
-    <div class="recent-row">
-
-      <div>
-        <strong>
-          ${escapeHTML(product.name)}
-        </strong>
-
-        <small>
-          Limit: ${product.lowStock}
-        </small>
-      </div>
-
-      <strong>
-        ${product.stock}
-      </strong>
-
-    </div>
-  `).join("");
-}
-
-
-/* =========================
-   REPORTS
-========================= */
-
-function renderReports() {
-
-  const sales =
-    invoices.reduce(
-      (sum, i) =>
-        sum + Number(i.totals?.grandTotal || 0),
-      0
-    );
-
-  const gst =
-    invoices.reduce(
-      (sum, i) =>
-        sum + Number(i.totals?.gst || 0),
-      0
-    );
-
-  const paid =
-    invoices
-      .filter(i => i.paymentStatus === "paid")
-      .reduce(
-        (sum, i) =>
-          sum + Number(i.totals?.grandTotal || 0),
-        0
-      );
-
-  const pending =
-    invoices
-      .filter(i => i.paymentStatus === "pending")
-      .reduce(
-        (sum, i) =>
-          sum + Number(i.totals?.grandTotal || 0),
-        0
-      );
-
-  setText("reportSales", money(sales));
-  setText("reportGST", money(gst));
-  setText("reportPaid", money(paid));
-  setText("reportPending", money(pending));
-
-  renderMonthlySales();
-}
-
-function renderMonthlySales() {
-
-  const container =
-    document.getElementById("monthlySalesChart");
-
-  if (!container) return;
-
-  const months = [];
-
-  const now = new Date();
-
-  for (let i = 5; i >= 0; i--) {
-
-    const date = new Date(
-      now.getFullYear(),
-      now.getMonth() - i,
-      1
-    );
-
-    months.push({
-      month: date.getMonth(),
-      year: date.getFullYear(),
-      label: date.toLocaleString("en-IN", {
-        month: "short"
-      }),
-      total: 0
-    });
-  }
-
-  invoices.forEach(invoice => {
-
-    const date =
-      new Date(invoice.invoiceDate);
-
-    const month =
-      months.find(m =>
-        m.month === date.getMonth() &&
-        m.year === date.getFullYear()
-      );
-
-    if (month) {
-      month.total +=
-        Number(invoice.totals?.grandTotal || 0);
-    }
-  });
-
-  const max =
-    Math.max(
-      ...months.map(m => m.total),
-      1
-    );
-
-  container.innerHTML =
-    months.map(month => {
-
-      const height =
-        Math.max(
-          3,
-          (month.total / max) * 100
-        );
-
-      return `
-        <div class="bar-wrap">
-
-          <div class="bar-value">
-            ${money(month.total)}
-          </div>
-
-          <div
-            class="bar"
-            style="height:${height}%">
-          </div>
-
-          <div class="bar-label">
-            ${month.label}
-          </div>
-
-        </div>
-      `;
-    }).join("");
-}
-
-
-/* =========================
-   SETTINGS
-========================= */
-
-function loadSettingsIntoForm() {
-
-  setValue("businessName", settings.businessName);
-  setValue("businessAddress", settings.businessAddress);
-  setValue("businessPhone", settings.businessPhone);
-  setValue("businessEmail", settings.businessEmail);
-  setValue("businessGSTIN", settings.businessGSTIN);
-  setValue("invoicePrefix", settings.invoicePrefix);
-  setValue("defaultGST", settings.defaultGST);
-  setValue("paymentTerms", settings.paymentTerms);
-  setValue("defaultNotes", settings.notes);
-  setValue("defaultTerms", settings.terms);
-}
-
-function saveSettings() {
-
-  settings = {
-    businessName:
-      getValue("businessName"),
-
-    businessAddress:
-      getValue("businessAddress"),
-
-    businessPhone:
-      getValue("businessPhone"),
-
-    businessEmail:
-      getValue("businessEmail"),
-
-    businessGSTIN:
-      getValue("businessGSTIN"),
-
-    invoicePrefix:
-      getValue("invoicePrefix") || "INV-",
-
-    defaultGST:
-      Number(getValue("defaultGST")) || 0,
-
-    paymentTerms:
-      getValue("paymentTerms"),
-
-    notes:
-      getValue("defaultNotes"),
-
-    terms:
-      getValue("defaultTerms")
-  };
-
-  saveData(STORAGE.settings, settings);
-
-  alert("Settings saved.");
-
-  updateInvoiceNumber();
-}
-
-
-/* =========================
-   SEARCH
-========================= */
-
-function setupSearches() {
-
-  const invoiceSearch =
-    document.getElementById("invoiceSearch");
-
-  if (invoiceSearch) {
-    invoiceSearch.addEventListener(
-      "input",
-      renderInvoices
-    );
-  }
-
-  const invoiceFilter =
-    document.getElementById("invoiceStatusFilter");
-
-  if (invoiceFilter) {
-    invoiceFilter.addEventListener(
-      "change",
-      renderInvoices
-    );
-  }
-
-  const inventorySearch =
-    document.getElementById("inventorySearch");
-
-  if (inventorySearch) {
-    inventorySearch.addEventListener(
-      "input",
-      renderInventory
-    );
-  }
-
-  const customerSearch =
-    document.getElementById("customerSearch");
-
-  if (customerSearch) {
-    customerSearch.addEventListener(
-      "input",
-      renderCustomers
-    );
-  }
-}
-
-
-/* =========================
-   PRINTABLE INVOICE
-========================= */
-
-function updatePrintableInvoice() {
-
-  const totals = calculateInvoice();
-
-  const invoice = {
-    invoiceNumber: getValue("invoiceNumber"),
-    invoiceDate: getValue("invoiceDate"),
-    dueDate: getValue("dueDate"),
-
-    customer: {
-      name: getValue("customerName"),
-      gstin: getValue("customerGSTIN"),
-      address: getValue("customerAddress"),
-      phone: getValue("customerPhone"),
-      email: getValue("customerEmail")
-    },
-
-    items: JSON.parse(JSON.stringify(invoiceItems)),
-
-    totals,
-
-    paymentStatus:
-      getValue("paymentStatus"),
-
-    paymentMethod:
-      getValue("paymentMethod"),
-
-    notes:
-      getValue("invoiceNotes"),
-
-    terms:
-      getValue("invoiceTerms")
-  };
-
-  populatePrintInvoice(invoice);
-}
-
-function populatePrintInvoice(invoice) {
-
-  setText(
-    "printBusinessName",
-    settings.businessName || "InvoicePro"
-  );
-
-  setText(
-    "printBusinessAddress",
-    settings.businessAddress
-  );
-
-  setText(
-    "printBusinessPhone",
-    settings.businessPhone
-  );
-
-  setText(
-    "printBusinessEmail",
-    settings.businessEmail
-  );
-
-  setText(
-    "printBusinessGSTIN",
-    settings.businessGSTIN
-  );
-
-  setText(
-    "printInvoiceNumber",
-    invoice.invoiceNumber
-  );
-
-  setText(
-    "printInvoiceDate",
-    invoice.invoiceDate
-  );
-
-  setText(
-    "printDueDate",
-    invoice.dueDate
-  );
-
-  setText(
-    "printCustomerName",
-    invoice.customer?.name || "Walk-in Customer"
-  );
-
-  setText(
-    "printCustomerAddress",
-    invoice.customer?.address || ""
-  );
-
-  setText(
-    "printCustomerGSTIN",
-    invoice.customer?.gstin || ""
-  );
-
-  setText(
-    "printCustomerPhone",
-    invoice.customer?.phone || ""
-  );
-
-  setText(
-    "printPaymentStatus",
-    invoice.paymentStatus || "pending"
-  );
-
-  setText(
-    "printPaymentMethod",
-    invoice.paymentMethod || ""
-  );
-
-  setText(
-    "printSubtotal",
-    money(invoice.totals?.subtotal || 0)
-  );
-
-  setText(
-    "printDiscount",
-    money(invoice.totals?.discount || 0)
-  );
-
-  setText(
-    "printTaxable",
-    money(invoice.totals?.taxable || 0)
-  );
-
-  setText(
-    "printCGST",
-    money(invoice.totals?.cgst || 0)
-  );
-
-  setText(
-    "printSGST",
-    money(invoice.totals?.sgst || 0)
-  );
-
-  setText(
-    "printGrandTotal",
-    money(invoice.totals?.grandTotal || 0)
-  );
-
-  setText(
-    "printAmountWords",
-    numberToIndianWords(
-      invoice.totals?.grandTotal || 0
+  const businessGSTIN =
+    String(settings.businessGSTIN || "")
+      .trim();
+
+  const customerGST =
+    String(customerGSTIN || "")
+      .trim();
+
+  if (
+    businessGSTIN.length >= 2 &&
+    customerGST.length >= 2
+  ) {
+    return (
+      businessGSTIN.slice(0, 2) ===
+      customerGST.slice(0, 2)
     )
-  );
+      ? "intra"
+      : "inter";
+  }
 
-  setText(
-    "printNotes",
-    invoice.notes || settings.notes || ""
-  );
-
-  setText(
-    "printTerms",
-    invoice.terms || settings.terms || ""
-  );
-
-  const tbody =
-    document.getElementById("printItemsBody");
-
-  if (!tbody) return;
-
-  tbody.innerHTML =
-    (invoice.items || []).map((item, index) => {
-
-      const result =
-        calculateItem(item);
-
-      return `
-        <tr>
-
-          <td>
-            ${index + 1}
-          </td>
-
-          <td>
-            ${escapeHTML(item.name)}
-          </td>
-
-          <td>
-            ${escapeHTML(item.hsn || "-")}
-          </td>
-
-          <td>
-            ${item.qty}
-          </td>
-
-          <td>
-            ${money(item.rate)}
-          </td>
-
-          <td>
-            ${item.discount}%
-          </td>
-
-          <td>
-            ${item.gst}%
-          </td>
-
-          <td>
-            ${money(result.total)}
-          </td>
-
-        </tr>
-      `;
-    }).join("");
+  return "intra";
 }
 
+/* =========================================================
+   CALCULATE INVOICE
+   ========================================================= */
 
-/* =========================
+function calculateInvoice() {
+  let subtotal = 0;
+  let discountTotal = 0;
+  let taxableTotal = 0;
+  let gstTotal = 0;
+
+  currentInvoiceItems.forEach(item => {
+    const gross =
+      number(item.qty) *
+      number(item.rate);
+
+    const discount =
+      gross *
+      number(item.discount) /
+      100;
+
+    const taxable =
+      gross - discount;
+
+    const gst =
+      taxable *
+      number(item.gst) /
+      100;
+
+    subtotal += gross;
+    discountTotal += discount;
+    taxableTotal += taxable;
+    gstTotal += gst;
+  });
+
+  const customerGSTIN =
+    getValue("customerGSTIN");
+
+  const taxMode =
+    getTaxMode(customerGSTIN);
+
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
+
+  if (taxMode === "intra") {
+    cgst = gstTotal / 2;
+    sgst = gstTotal / 2;
+  } else {
+    igst = gstTotal;
+  }
+
+  const grandTotal =
+    taxableTotal + gstTotal;
+
+  setText(
+    "summarySubtotal",
+    money(subtotal)
+  );
+
+  setText(
+    "summaryDiscount",
+    money(discountTotal)
+  );
+
+  setText(
+    "summaryTaxable",
+    money(taxableTotal)
+  );
+
+  setText(
+    "summaryCGST",
+    money(cgst)
+  );
+
+  setText(
+    "summarySGST",
+    money(sgst)
+  );
+
+  setText(
+    "summaryIGST",
+    money(igst)
+  );
+
+  setText(
+    "summaryGST",
+    money(gstTotal)
+  );
+
+  setText(
+    "summaryGrandTotal",
+    money(grandTotal)
+  );
+
+  setText(
+    "amountInWords",
+    amountInWords(grandTotal)
+  );
+
+  return {
+    subtotal,
+    discountTotal,
+    taxableTotal,
+    gstTotal,
+    cgst,
+    sgst,
+    igst,
+    grandTotal,
+    taxMode
+  };
+}
+
+/* =========================================================
    AMOUNT IN WORDS
-   INDIAN NUMBER SYSTEM
-========================= */
+   ========================================================= */
 
-function numberToIndianWords(amount) {
-
-  amount = number(amount);
+function amountInWords(amount) {
+  amount = Math.round(
+    Number(amount) || 0
+  );
 
   if (amount === 0) {
     return "Rupees Zero Only";
-  }
-
-  const rupees =
-    Math.floor(amount);
-
-  const paise =
-    Math.round((amount - rupees) * 100);
-
-  let result =
-    "Rupees " +
-    indianNumberWords(rupees);
-
-  if (paise > 0) {
-    result +=
-      " and " +
-      indianNumberWords(paise) +
-      " Paise";
-  }
-
-  return result + " Only";
-}
-
-function indianNumberWords(num) {
-
-  num = Math.floor(Number(num) || 0);
-
-  if (num === 0) {
-    return "Zero";
   }
 
   const ones = [
@@ -2150,173 +783,2661 @@ function indianNumberWords(num) {
     "Ninety"
   ];
 
-  function belowThousand(n) {
+  function twoDigits(n) {
+    if (n < 20) return ones[n];
 
-    let words = "";
-
-    if (n >= 100) {
-
-      words +=
-        ones[Math.floor(n / 100)] +
-        " Hundred ";
-
-      n %= 100;
-    }
-
-    if (n >= 20) {
-
-      words +=
-        tens[Math.floor(n / 10)];
-
-      if (n % 10) {
-        words +=
-          " " + ones[n % 10];
-      }
-
-    } else if (n > 0) {
-
-      words += ones[n];
-    }
-
-    return words.trim();
+    return (
+      tens[Math.floor(n / 10)] +
+      (n % 10
+        ? " " + ones[n % 10]
+        : "")
+    );
   }
 
-  const parts = [];
+  function threeDigits(n) {
+    if (n < 100) {
+      return twoDigits(n);
+    }
+
+    return (
+      ones[Math.floor(n / 100)] +
+      " Hundred" +
+      (n % 100
+        ? " " + twoDigits(n % 100)
+        : "")
+    );
+  }
+
+  let result = "";
 
   const crore =
-    Math.floor(num / 10000000);
+    Math.floor(amount / 10000000);
 
-  num %= 10000000;
+  amount %= 10000000;
 
   const lakh =
-    Math.floor(num / 100000);
+    Math.floor(amount / 100000);
 
-  num %= 100000;
+  amount %= 100000;
 
   const thousand =
-    Math.floor(num / 1000);
+    Math.floor(amount / 1000);
 
-  num %= 1000;
+  amount %= 1000;
+
+  const remainder = amount;
 
   if (crore) {
-    parts.push(
-      belowThousand(crore) + " Crore"
-    );
+    result +=
+      threeDigits(crore) +
+      " Crore ";
   }
 
   if (lakh) {
-    parts.push(
-      belowThousand(lakh) + " Lakh"
-    );
+    result +=
+      threeDigits(lakh) +
+      " Lakh ";
   }
 
   if (thousand) {
-    parts.push(
-      belowThousand(thousand) + " Thousand"
-    );
+    result +=
+      threeDigits(thousand) +
+      " Thousand ";
   }
 
-  if (num) {
-    parts.push(
-      belowThousand(num)
-    );
+  if (remainder) {
+    result += threeDigits(remainder);
   }
 
-  return parts.join(" ");
+  return (
+    "Rupees " +
+    result.trim() +
+    " Only"
+  );
 }
 
+/* =========================================================
+   TEMPLATE SYSTEM
+   ========================================================= */
 
-/* =========================
-   CLOSE MODALS
-========================= */
+function setTemplate(template, element) {
+  const allowed = [
+    "professional",
+    "classic",
+    "modern",
+    "gst",
+    "minimal"
+  ];
 
-function closeAllModals() {
+  if (!allowed.includes(template)) {
+    template = "professional";
+  }
 
-  document.querySelectorAll(".modal").forEach(modal => {
-    modal.classList.remove("show");
+  currentTemplate = template;
+
+  document
+    .querySelectorAll(".template-option")
+    .forEach(el => {
+      el.classList.remove("active");
+    });
+
+  if (element) {
+    element.classList.add("active");
+  } else {
+    const selected =
+      document.querySelector(
+        `[data-template="${template}"]`
+      );
+
+    if (selected) {
+      selected.classList.add("active");
+    }
+  }
+
+  const paper = $("invoicePaper");
+
+  if (paper) {
+    paper.classList.remove(
+      "template-professional",
+      "template-classic",
+      "template-modern",
+      "template-gst",
+      "template-minimal"
+    );
+
+    paper.classList.add(
+      "template-" + template
+    );
+  }
+
+  updateInvoicePreview();
+}
+
+function saveSelectedTemplate() {
+  settings.invoiceTemplate =
+    currentTemplate;
+
+  save(
+    STORAGE.settings,
+    settings
+  );
+}
+
+/* =========================================================
+   PREVIEW
+   ========================================================= */
+
+function updateInvoicePreview() {
+  const paper = $("invoicePaper");
+
+  if (!paper) return;
+
+  paper.classList.remove(
+    "template-professional",
+    "template-classic",
+    "template-modern",
+    "template-gst",
+    "template-minimal"
+  );
+
+  paper.classList.add(
+    "template-" + currentTemplate
+  );
+
+  const calc = calculateInvoice();
+
+  setText(
+    "printBusinessName",
+    settings.businessName
+  );
+
+  setText(
+    "printBusinessAddress",
+    settings.businessAddress
+  );
+
+  setText(
+    "printBusinessPhone",
+    settings.businessPhone
+  );
+
+  setText(
+    "printBusinessEmail",
+    settings.businessEmail
+  );
+
+  setText(
+    "printBusinessGSTIN",
+    settings.businessGSTIN
+  );
+
+  setText(
+    "printInvoiceNumber",
+    getValue("invoiceNumber")
+  );
+
+  setText(
+    "printInvoiceDate",
+    getValue("invoiceDate")
+  );
+
+  setText(
+    "printDueDate",
+    getValue("dueDate")
+  );
+
+  setText(
+    "printCustomerName",
+    getValue("customerName")
+  );
+
+  setText(
+    "printCustomerAddress",
+    getValue("customerAddress")
+  );
+
+  setText(
+    "printCustomerGSTIN",
+    getValue("customerGSTIN")
+  );
+
+  setText(
+    "printCustomerPhone",
+    getValue("customerPhone")
+  );
+
+  setText(
+    "printPaymentStatus",
+    getValue("paymentStatus")
+  );
+
+  setText(
+    "printPaymentMethod",
+    getValue("paymentMethod")
+  );
+
+  setText(
+    "printSubtotal",
+    money(calc.subtotal)
+  );
+
+  setText(
+    "printDiscount",
+    money(calc.discountTotal)
+  );
+
+  setText(
+    "printTaxable",
+    money(calc.taxableTotal)
+  );
+
+  setText(
+    "printCGST",
+    money(calc.cgst)
+  );
+
+  setText(
+    "printSGST",
+    money(calc.sgst)
+  );
+
+  setText(
+    "printIGST",
+    money(calc.igst)
+  );
+
+  setText(
+    "printGST",
+    money(calc.gstTotal)
+  );
+
+  setText(
+    "printGrandTotal",
+    money(calc.grandTotal)
+  );
+
+  setText(
+    "printAmountWords",
+    amountInWords(calc.grandTotal)
+  );
+
+  setText(
+    "printNotes",
+    getValue("invoiceNotes")
+  );
+
+  setText(
+    "printTerms",
+    getValue("invoiceTerms")
+  );
+
+  renderPrintItems();
+
+  const logo =
+    $("printLogo");
+
+  if (logo) {
+    if (settings.logo) {
+      logo.src = settings.logo;
+      logo.style.display = "block";
+    } else {
+      logo.style.display = "none";
+    }
+  }
+
+  const templateLabel =
+    $("printTemplate");
+
+  if (templateLabel) {
+    templateLabel.textContent =
+      currentTemplate.toUpperCase();
+  }
+}
+
+function renderPrintItems() {
+  const body =
+    $("printItemsBody");
+
+  if (!body) return;
+
+  body.innerHTML =
+    currentInvoiceItems
+      .map((item, index) => {
+        const gross =
+          item.qty * item.rate;
+
+        const discount =
+          gross *
+          item.discount /
+          100;
+
+        const taxable =
+          gross - discount;
+
+        const gst =
+          taxable *
+          item.gst /
+          100;
+
+        const total =
+          taxable + gst;
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHTML(item.name)}</td>
+            <td>${escapeHTML(item.hsn || "-")}</td>
+            <td>${item.qty}</td>
+            <td>${money(item.rate)}</td>
+            <td>${item.gst}%</td>
+            <td>${money(taxable)}</td>
+            <td>${money(total)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+}
+
+/* =========================================================
+   SAVE INVOICE
+   ========================================================= */
+
+function saveInvoice() {
+  if (!getValue("customerName")) {
+    showToast("Please enter a customer.");
+    return;
+  }
+
+  if (!currentInvoiceItems.length) {
+    showToast("Please add at least one item.");
+    return;
+  }
+
+  const calc = calculateInvoice();
+
+  const invoice = {
+    id:
+      editingInvoiceId ||
+      uid("invoice"),
+
+    number:
+      getValue("invoiceNumber") ||
+      getNextInvoiceNumber(),
+
+    date:
+      getValue("invoiceDate") ||
+      todayISO(),
+
+    dueDate:
+      getValue("dueDate"),
+
+    customer: {
+      name: getValue("customerName"),
+      gstin: getValue("customerGSTIN"),
+      address: getValue("customerAddress"),
+      phone: getValue("customerPhone"),
+      email: getValue("customerEmail")
+    },
+
+    items:
+      JSON.parse(
+        JSON.stringify(currentInvoiceItems)
+      ),
+
+    subtotal: calc.subtotal,
+    discount: calc.discountTotal,
+    taxable: calc.taxableTotal,
+
+    gst: calc.gstTotal,
+    cgst: calc.cgst,
+    sgst: calc.sgst,
+    igst: calc.igst,
+
+    total: calc.grandTotal,
+
+    taxMode: calc.taxMode,
+
+    paymentStatus:
+      getValue("paymentStatus") ||
+      "Pending",
+
+    paymentMethod:
+      getValue("paymentMethod") ||
+      "Bank Transfer",
+
+    notes:
+      getValue("invoiceNotes"),
+
+    terms:
+      getValue("invoiceTerms"),
+
+    template:
+      currentTemplate,
+
+    stockAdjusted:
+      editingInvoiceId
+        ? true
+        : false,
+
+    createdAt:
+      new Date().toISOString()
+  };
+
+  if (editingInvoiceId) {
+    const index =
+      invoices.findIndex(
+        inv => inv.id === editingInvoiceId
+      );
+
+    if (index !== -1) {
+      invoices[index] = invoice;
+    }
+  } else {
+    deductStockForInvoice(invoice);
+
+    invoice.stockAdjusted = true;
+
+    invoices.unshift(invoice);
+  }
+
+  save(
+    STORAGE.invoices,
+    invoices
+  );
+
+  editingInvoiceId = null;
+
+  showToast(
+    "Invoice saved successfully."
+  );
+
+  renderDashboard();
+  renderInvoices();
+
+  navigate("invoices");
+}
+
+/* =========================================================
+   STOCK
+   ========================================================= */
+
+function deductStockForInvoice(invoice) {
+  invoice.items.forEach(item => {
+    if (!item.productId) return;
+
+    const product =
+      products.find(
+        p => p.id === item.productId
+      );
+
+    if (!product) return;
+
+    product.stock =
+      Math.max(
+        0,
+        number(product.stock) -
+          number(item.qty)
+      );
+  });
+
+  save(
+    STORAGE.products,
+    products
+  );
+}
+
+function restoreStockForInvoice(invoice) {
+  invoice.items.forEach(item => {
+    if (!item.productId) return;
+
+    const product =
+      products.find(
+        p => p.id === item.productId
+      );
+
+    if (!product) return;
+
+    product.stock =
+      number(product.stock) +
+      number(item.qty);
+  });
+
+  save(
+    STORAGE.products,
+    products
+  );
+}
+
+/* =========================================================
+   CLEAR INVOICE
+   ========================================================= */
+
+function clearInvoice() {
+  editingInvoiceId = null;
+
+  currentInvoiceItems = [];
+
+  prepareNewInvoice();
+
+  showToast("Invoice cleared.");
+}
+
+/* =========================================================
+   PRINT
+   ========================================================= */
+
+function printInvoice() {
+  updateInvoicePreview();
+
+  const paper =
+    $("invoicePaper");
+
+  if (!paper) {
+    window.print();
+    return;
+  }
+
+  paper.classList.add("print-invoice");
+
+  setTimeout(() => {
+    window.print();
+
+    setTimeout(() => {
+      paper.classList.remove(
+        "print-invoice"
+      );
+    }, 500);
+  }, 100);
+}
+
+/* =========================================================
+   INVOICES TABLE
+   ========================================================= */
+
+function renderInvoices() {
+  const body =
+    $("invoicesTableBody");
+
+  if (!body) return;
+
+  const search =
+    String(
+      getValue("invoiceSearch")
+    ).toLowerCase();
+
+  const status =
+    getValue("invoiceStatusFilter");
+
+  const filtered =
+    invoices.filter(inv => {
+      const matchesSearch =
+        !search ||
+        String(inv.number)
+          .toLowerCase()
+          .includes(search) ||
+        String(
+          inv.customer?.name || ""
+        )
+          .toLowerCase()
+          .includes(search);
+
+      const matchesStatus =
+        !status ||
+        inv.paymentStatus === status;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    });
+
+  if (!filtered.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7">
+          <div class="empty-state">
+            <div class="empty-state-icon">🧾</div>
+            <h3>No invoices found</h3>
+            <p>Create your first invoice to see it here.</p>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  body.innerHTML =
+    filtered
+      .map(inv => {
+        const badge =
+          inv.paymentStatus === "Paid"
+            ? "badge-success"
+            : inv.paymentStatus === "Partial"
+              ? "badge-warning"
+              : "badge-danger";
+
+        return `
+          <tr>
+            <td>
+              <strong>
+                ${escapeHTML(inv.number)}
+              </strong>
+            </td>
+
+            <td>
+              ${escapeHTML(
+                inv.customer?.name || "-"
+              )}
+            </td>
+
+            <td>
+              ${escapeHTML(inv.date || "-")}
+            </td>
+
+            <td>
+              ${money(inv.total)}
+            </td>
+
+            <td>
+              <span class="badge ${badge}">
+                ${escapeHTML(
+                  inv.paymentStatus || "Pending"
+                )}
+              </span>
+            </td>
+
+            <td>
+              ${escapeHTML(
+                inv.template || "professional"
+              )}
+            </td>
+
+            <td>
+              <div class="table-actions">
+
+                <button
+                  class="btn btn-secondary btn-sm"
+                  onclick="editInvoice('${inv.id}')">
+                  Edit
+                </button>
+
+                <button
+                  class="btn btn-primary btn-sm"
+                  onclick="printSavedInvoice('${inv.id}')">
+                  Print
+                </button>
+
+                <button
+                  class="btn btn-danger btn-sm"
+                  onclick="deleteInvoice('${inv.id}')">
+                  Delete
+                </button>
+
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+}
+
+/* =========================================================
+   EDIT INVOICE
+   ========================================================= */
+
+function editInvoice(id) {
+  const invoice =
+    invoices.find(
+      inv => inv.id === id
+    );
+
+  if (!invoice) return;
+
+  editingInvoiceId = id;
+
+  navigate("invoice");
+
+  setValue(
+    "invoiceNumber",
+    invoice.number
+  );
+
+  setValue(
+    "invoiceDate",
+    invoice.date
+  );
+
+  setValue(
+    "dueDate",
+    invoice.dueDate
+  );
+
+  setValue(
+    "customerName",
+    invoice.customer?.name
+  );
+
+  setValue(
+    "customerGSTIN",
+    invoice.customer?.gstin
+  );
+
+  setValue(
+    "customerAddress",
+    invoice.customer?.address
+  );
+
+  setValue(
+    "customerPhone",
+    invoice.customer?.phone
+  );
+
+  setValue(
+    "customerEmail",
+    invoice.customer?.email
+  );
+
+  setValue(
+    "paymentStatus",
+    invoice.paymentStatus
+  );
+
+  setValue(
+    "paymentMethod",
+    invoice.paymentMethod
+  );
+
+  setValue(
+    "invoiceNotes",
+    invoice.notes
+  );
+
+  setValue(
+    "invoiceTerms",
+    invoice.terms
+  );
+
+  currentInvoiceItems =
+    JSON.parse(
+      JSON.stringify(
+        invoice.items || []
+      )
+    );
+
+  setTemplate(
+    invoice.template ||
+    "professional"
+  );
+
+  renderInvoiceItems();
+  calculateInvoice();
+  updateInvoicePreview();
+}
+
+/* =========================================================
+   PRINT SAVED INVOICE
+   ========================================================= */
+
+function printSavedInvoice(id) {
+  const invoice =
+    invoices.find(
+      inv => inv.id === id
+    );
+
+  if (!invoice) return;
+
+  editingInvoiceId = id;
+
+  currentInvoiceItems =
+    JSON.parse(
+      JSON.stringify(
+        invoice.items || []
+      )
+    );
+
+  setValue(
+    "invoiceNumber",
+    invoice.number
+  );
+
+  setValue(
+    "invoiceDate",
+    invoice.date
+  );
+
+  setValue(
+    "dueDate",
+    invoice.dueDate
+  );
+
+  setValue(
+    "customerName",
+    invoice.customer?.name
+  );
+
+  setValue(
+    "customerGSTIN",
+    invoice.customer?.gstin
+  );
+
+  setValue(
+    "customerAddress",
+    invoice.customer?.address
+  );
+
+  setValue(
+    "customerPhone",
+    invoice.customer?.phone
+  );
+
+  setValue(
+    "customerEmail",
+    invoice.customer?.email
+  );
+
+  setValue(
+    "paymentStatus",
+    invoice.paymentStatus
+  );
+
+  setValue(
+    "paymentMethod",
+    invoice.paymentMethod
+  );
+
+  setValue(
+    "invoiceNotes",
+    invoice.notes
+  );
+
+  setValue(
+    "invoiceTerms",
+    invoice.terms
+  );
+
+  setTemplate(
+    invoice.template ||
+    "professional"
+  );
+
+  renderInvoiceItems();
+  updateInvoicePreview();
+
+  navigate("invoice");
+
+  setTimeout(() => {
+    printInvoice();
+  }, 250);
+}
+
+/* =========================================================
+   DELETE INVOICE
+   ========================================================= */
+
+function deleteInvoice(id) {
+  const invoice =
+    invoices.find(
+      inv => inv.id === id
+    );
+
+  if (!invoice) return;
+
+  if (
+    !confirm(
+      `Delete invoice ${invoice.number}?`
+    )
+  ) {
+    return;
+  }
+
+  if (invoice.stockAdjusted) {
+    restoreStockForInvoice(invoice);
+  }
+
+  invoices =
+    invoices.filter(
+      inv => inv.id !== id
+    );
+
+  save(
+    STORAGE.invoices,
+    invoices
+  );
+
+  renderInvoices();
+  renderDashboard();
+  renderInventory();
+
+  showToast("Invoice deleted.");
+}
+
+/* =========================================================
+   INVENTORY
+   ========================================================= */
+
+function renderInventory() {
+  const body =
+    $("inventoryTableBody");
+
+  if (!body) return;
+
+  const search =
+    String(
+      getValue("inventorySearch")
+    ).toLowerCase();
+
+  const category =
+    getValue("inventoryCategoryFilter");
+
+  const filtered =
+    products.filter(product => {
+      const matchesSearch =
+        !search ||
+        String(product.name)
+          .toLowerCase()
+          .includes(search) ||
+        String(product.sku || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(product.hsn || "")
+          .toLowerCase()
+          .includes(search);
+
+      const matchesCategory =
+        !category ||
+        product.category === category;
+
+      return (
+        matchesSearch &&
+        matchesCategory
+      );
+    });
+
+  if (!filtered.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="10">
+          <div class="empty-state">
+            <div class="empty-state-icon">📦</div>
+            <h3>No products found</h3>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    updateInventoryStats();
+    return;
+  }
+
+  body.innerHTML =
+    filtered
+      .map(product => {
+        const low =
+          number(product.stock) <=
+          number(product.lowStock);
+
+        return `
+          <tr>
+            <td>
+              <strong>
+                ${escapeHTML(product.name)}
+              </strong>
+            </td>
+
+            <td>
+              ${escapeHTML(product.sku || "-")}
+            </td>
+
+            <td>
+              ${escapeHTML(product.category || "-")}
+            </td>
+
+            <td>
+              ${escapeHTML(product.hsn || "-")}
+            </td>
+
+            <td>
+              ${money(product.purchasePrice)}
+            </td>
+
+            <td>
+              ${money(product.sellingPrice)}
+            </td>
+
+            <td>
+              ${product.gst || 0}%
+            </td>
+
+            <td class="${low ? "stock-low" : "stock-good"}">
+              ${product.stock || 0}
+            </td>
+
+            <td>
+              ${
+                low
+                  ? `<span class="badge badge-danger">Low</span>`
+                  : `<span class="badge badge-success">Good</span>`
+              }
+            </td>
+
+            <td>
+              <div class="table-actions">
+
+                <button
+                  class="btn btn-secondary btn-sm"
+                  onclick="editProduct('${product.id}')">
+                  Edit
+                </button>
+
+                <button
+                  class="btn btn-danger btn-sm"
+                  onclick="deleteProduct('${product.id}')">
+                  Delete
+                </button>
+
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+  updateInventoryStats();
+}
+
+function updateInventoryStats() {
+  const count =
+    products.length;
+
+  const stock =
+    products.reduce(
+      (sum, p) =>
+        sum + number(p.stock),
+      0
+    );
+
+  const low =
+    products.filter(
+      p =>
+        number(p.stock) <=
+        number(p.lowStock)
+    ).length;
+
+  const value =
+    products.reduce(
+      (sum, p) =>
+        sum +
+        number(p.stock) *
+        number(p.purchasePrice),
+      0
+    );
+
+  setText(
+    "inventoryProductCount",
+    count
+  );
+
+  setText(
+    "inventoryStockCount",
+    stock
+  );
+
+  setText(
+    "inventoryLowStockCount",
+    low
+  );
+
+  setText(
+    "inventoryStockValue",
+    money(value)
+  );
+}
+
+/* =========================================================
+   PRODUCT MODAL
+   ========================================================= */
+
+function openProductModal(id = null) {
+  editingProductId = id;
+
+  const modal =
+    $("productModal");
+
+  if (!modal) return;
+
+  if (id) {
+    const product =
+      products.find(
+        p => p.id === id
+      );
+
+    if (!product) return;
+
+    setValue(
+      "productEditId",
+      id
+    );
+
+    setValue(
+      "productName",
+      product.name
+    );
+
+    setValue(
+      "productSKU",
+      product.sku
+    );
+
+    setValue(
+      "productCategory",
+      product.category
+    );
+
+    setValue(
+      "productHSN",
+      product.hsn
+    );
+
+    setValue(
+      "productPurchasePrice",
+      product.purchasePrice
+    );
+
+    setValue(
+      "productSellingPrice",
+      product.sellingPrice
+    );
+
+    setValue(
+      "productGST",
+      product.gst
+    );
+
+    setValue(
+      "productStock",
+      product.stock
+    );
+
+    setValue(
+      "productLowStock",
+      product.lowStock
+    );
+  } else {
+    clearProductForm();
+
+    setValue(
+      "productGST",
+      settings.defaultGST
+    );
+
+    setValue(
+      "productLowStock",
+      5
+    );
+  }
+
+  modal.classList.add("active");
+}
+
+function closeProductModal() {
+  const modal =
+    $("productModal");
+
+  if (modal) {
+    modal.classList.remove("active");
+  }
+
+  editingProductId = null;
+}
+
+function clearProductForm() {
+  [
+    "productEditId",
+    "productName",
+    "productSKU",
+    "productCategory",
+    "productHSN",
+    "productPurchasePrice",
+    "productSellingPrice",
+    "productGST",
+    "productStock",
+    "productLowStock"
+  ].forEach(id => {
+    setValue(id, "");
   });
 }
 
+function saveProduct() {
+  const product = {
+    id:
+      editingProductId ||
+      uid("product"),
 
-/* =========================
-   RENDER EVERYTHING
-========================= */
+    name:
+      getValue("productName")
+        .trim(),
 
-function renderEverything() {
+    sku:
+      getValue("productSKU")
+        .trim(),
 
-  renderCustomerSelect();
-  renderProductSelect();
+    category:
+      getValue("productCategory")
+        .trim(),
 
-  renderInvoiceItems();
+    hsn:
+      getValue("productHSN")
+        .trim(),
 
-  renderInvoices();
+    purchasePrice:
+      number(
+        getValue(
+          "productPurchasePrice"
+        )
+      ),
+
+    sellingPrice:
+      number(
+        getValue(
+          "productSellingPrice"
+        )
+      ),
+
+    gst:
+      number(
+        getValue("productGST")
+      ),
+
+    stock:
+      number(
+        getValue("productStock")
+      ),
+
+    lowStock:
+      number(
+        getValue("productLowStock")
+      ) || 5
+  };
+
+  if (!product.name) {
+    showToast("Product name is required.");
+    return;
+  }
+
+  if (editingProductId) {
+    const index =
+      products.findIndex(
+        p => p.id === editingProductId
+      );
+
+    if (index !== -1) {
+      products[index] = product;
+    }
+  } else {
+    products.push(product);
+  }
+
+  save(
+    STORAGE.products,
+    products
+  );
+
+  closeProductModal();
+
   renderInventory();
+  populateProductSelect();
+
+  showToast("Product saved.");
+}
+
+function editProduct(id) {
+  openProductModal(id);
+}
+
+function deleteProduct(id) {
+  const product =
+    products.find(
+      p => p.id === id
+    );
+
+  if (!product) return;
+
+  if (
+    !confirm(
+      `Delete ${product.name}?`
+    )
+  ) {
+    return;
+  }
+
+  products =
+    products.filter(
+      p => p.id !== id
+    );
+
+  save(
+    STORAGE.products,
+    products
+  );
+
+  renderInventory();
+  populateProductSelect();
+
+  showToast("Product deleted.");
+}
+
+/* =========================================================
+   CUSTOMERS
+   ========================================================= */
+
+function renderCustomers() {
+  const body =
+    $("customersTableBody");
+
+  if (!body) return;
+
+  if (!customers.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7">
+          <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <h3>No customers yet</h3>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  body.innerHTML =
+    customers
+      .map(customer => `
+        <tr>
+          <td>
+            <strong>
+              ${escapeHTML(customer.name)}
+            </strong>
+          </td>
+
+          <td>
+            ${escapeHTML(
+              customer.gstin || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              customer.phone || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              customer.email || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              customer.address || "-"
+            )}
+          </td>
+
+          <td>
+            ${invoices.filter(
+              inv =>
+                inv.customer?.name ===
+                customer.name
+            ).length}
+          </td>
+
+          <td>
+            <div class="table-actions">
+
+              <button
+                class="btn btn-secondary btn-sm"
+                onclick="editCustomer('${customer.id}')">
+                Edit
+              </button>
+
+              <button
+                class="btn btn-danger btn-sm"
+                onclick="deleteCustomer('${customer.id}')">
+                Delete
+              </button>
+
+            </div>
+          </td>
+        </tr>
+      `)
+      .join("");
+}
+
+/* =========================================================
+   CUSTOMER MODAL
+   ========================================================= */
+
+function openCustomerModal(id = null) {
+  editingCustomerId = id;
+
+  const modal =
+    $("customerModal");
+
+  if (!modal) return;
+
+  if (id) {
+    const customer =
+      customers.find(
+        c => c.id === id
+      );
+
+    if (!customer) return;
+
+    setValue(
+      "customerEditId",
+      id
+    );
+
+    setValue(
+      "modalCustomerName",
+      customer.name
+    );
+
+    setValue(
+      "modalCustomerGSTIN",
+      customer.gstin
+    );
+
+    setValue(
+      "modalCustomerAddress",
+      customer.address
+    );
+
+    setValue(
+      "modalCustomerPhone",
+      customer.phone
+    );
+
+    setValue(
+      "modalCustomerEmail",
+      customer.email
+    );
+  } else {
+    clearCustomerModalForm();
+  }
+
+  modal.classList.add("active");
+}
+
+function closeCustomerModal() {
+  const modal =
+    $("customerModal");
+
+  if (modal) {
+    modal.classList.remove("active");
+  }
+
+  editingCustomerId = null;
+}
+
+function clearCustomerModalForm() {
+  [
+    "customerEditId",
+    "modalCustomerName",
+    "modalCustomerGSTIN",
+    "modalCustomerAddress",
+    "modalCustomerPhone",
+    "modalCustomerEmail"
+  ].forEach(id => {
+    setValue(id, "");
+  });
+}
+
+function saveCustomer() {
+  const customer = {
+    id:
+      editingCustomerId ||
+      uid("customer"),
+
+    name:
+      getValue("modalCustomerName")
+        .trim(),
+
+    gstin:
+      getValue("modalCustomerGSTIN")
+        .trim(),
+
+    address:
+      getValue("modalCustomerAddress")
+        .trim(),
+
+    phone:
+      getValue("modalCustomerPhone")
+        .trim(),
+
+    email:
+      getValue("modalCustomerEmail")
+        .trim()
+  };
+
+  if (!customer.name) {
+    showToast("Customer name is required.");
+    return;
+  }
+
+  if (editingCustomerId) {
+    const index =
+      customers.findIndex(
+        c => c.id === editingCustomerId
+      );
+
+    if (index !== -1) {
+      customers[index] = customer;
+    }
+  } else {
+    customers.push(customer);
+  }
+
+  save(
+    STORAGE.customers,
+    customers
+  );
+
+  closeCustomerModal();
+
   renderCustomers();
+  populateCustomerSelect();
 
-  renderDashboard();
-  renderReports();
-
-  loadSettingsIntoForm();
+  showToast("Customer saved.");
 }
 
-
-/* =========================
-   DOM HELPERS
-========================= */
-
-function getValue(id) {
-
-  const element =
-    document.getElementById(id);
-
-  return element
-    ? element.value
-    : "";
+function editCustomer(id) {
+  openCustomerModal(id);
 }
 
-function setValue(id, value) {
+function deleteCustomer(id) {
+  const customer =
+    customers.find(
+      c => c.id === id
+    );
 
-  const element =
-    document.getElementById(id);
+  if (!customer) return;
 
-  if (element) {
-    element.value =
-      value ?? "";
+  if (
+    !confirm(
+      `Delete ${customer.name}?`
+    )
+  ) {
+    return;
+  }
+
+  customers =
+    customers.filter(
+      c => c.id !== id
+    );
+
+  save(
+    STORAGE.customers,
+    customers
+  );
+
+  renderCustomers();
+  populateCustomerSelect();
+
+  showToast("Customer deleted.");
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+
+function renderDashboard() {
+  const sales =
+    invoices.reduce(
+      (sum, inv) =>
+        sum + number(inv.total),
+      0
+    );
+
+  const paid =
+    invoices
+      .filter(
+        inv =>
+          inv.paymentStatus ===
+          "Paid"
+      )
+      .reduce(
+        (sum, inv) =>
+          sum + number(inv.total),
+        0
+      );
+
+  const pending =
+    invoices
+      .filter(
+        inv =>
+          inv.paymentStatus !==
+          "Paid"
+      )
+      .reduce(
+        (sum, inv) =>
+          sum + number(inv.total),
+        0
+      );
+
+  const lowStock =
+    products.filter(
+      p =>
+        number(p.stock) <=
+        number(p.lowStock)
+    ).length;
+
+  setText(
+    "dashboardSales",
+    money(sales)
+  );
+
+  setText(
+    "dashboardInvoices",
+    invoices.length
+  );
+
+  setText(
+    "dashboardCustomers",
+    customers.length
+  );
+
+  setText(
+    "dashboardLowStock",
+    lowStock
+  );
+
+  setText(
+    "dashboardPaid",
+    money(paid)
+  );
+
+  setText(
+    "dashboardPending",
+    money(pending)
+  );
+
+  renderRecentInvoices();
+  renderLowStockProducts();
+}
+
+function renderRecentInvoices() {
+  const container =
+    $("recentInvoices");
+
+  if (!container) return;
+
+  const recent =
+    invoices.slice(0, 5);
+
+  if (!recent.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🧾</div>
+        <h3>No invoices yet</h3>
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML =
+    recent
+      .map(inv => `
+        <div
+          class="flex-between"
+          style="
+            padding:10px 0;
+            border-bottom:1px solid #e5e7eb;
+          "
+        >
+          <div>
+            <strong>
+              ${escapeHTML(inv.number)}
+            </strong>
+
+            <div class="small muted">
+              ${escapeHTML(
+                inv.customer?.name || "-"
+              )}
+            </div>
+          </div>
+
+          <strong>
+            ${money(inv.total)}
+          </strong>
+        </div>
+      `)
+      .join("");
+}
+
+function renderLowStockProducts() {
+  const container =
+    $("lowStockProducts");
+
+  if (!container) return;
+
+  const low =
+    products.filter(
+      p =>
+        number(p.stock) <=
+        number(p.lowStock)
+    );
+
+  if (!low.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <h3>Stock looks good</h3>
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML =
+    low
+      .map(p => `
+        <div
+          class="flex-between"
+          style="
+            padding:10px 0;
+            border-bottom:1px solid #e5e7eb;
+          "
+        >
+          <span>
+            ${escapeHTML(p.name)}
+          </span>
+
+          <span class="badge badge-danger">
+            ${p.stock} left
+          </span>
+        </div>
+      `)
+      .join("");
+}
+
+/* =========================================================
+   REPORTS
+   ========================================================= */
+
+function renderReports() {
+  const sales =
+    invoices.reduce(
+      (sum, inv) =>
+        sum + number(inv.total),
+      0
+    );
+
+  const gst =
+    invoices.reduce(
+      (sum, inv) =>
+        sum + number(inv.gst),
+      0
+    );
+
+  const paid =
+    invoices
+      .filter(
+        inv =>
+          inv.paymentStatus ===
+          "Paid"
+      )
+      .reduce(
+        (sum, inv) =>
+          sum + number(inv.total),
+        0
+      );
+
+  const pending =
+    sales - paid;
+
+  setText(
+    "reportSales",
+    money(sales)
+  );
+
+  setText(
+    "reportGST",
+    money(gst)
+  );
+
+  setText(
+    "reportPaid",
+    money(paid)
+  );
+
+  setText(
+    "reportPending",
+    money(pending)
+  );
+
+  renderSalesChart();
+}
+
+function renderSalesChart() {
+  const canvas =
+    $("monthlySalesChart");
+
+  if (!canvas) return;
+
+  const ctx =
+    canvas.getContext("2d");
+
+  const months = [];
+
+  const values = [];
+
+  const now = new Date();
+
+  for (let i = 5; i >= 0; i--) {
+    const d =
+      new Date(
+        now.getFullYear(),
+        now.getMonth() - i,
+        1
+      );
+
+    const month =
+      d.toLocaleString(
+        "en-IN",
+        { month: "short" }
+      );
+
+    const year =
+      d.getFullYear();
+
+    const total =
+      invoices
+        .filter(inv => {
+          const date =
+            new Date(
+              inv.date ||
+              inv.createdAt
+            );
+
+          return (
+            date.getMonth() ===
+              d.getMonth() &&
+            date.getFullYear() ===
+              year
+          );
+        })
+        .reduce(
+          (sum, inv) =>
+            sum + number(inv.total),
+          0
+        );
+
+    months.push(month);
+    values.push(total);
+  }
+
+  const width =
+    canvas.clientWidth || 700;
+
+  const height = 300;
+
+  canvas.width =
+    width *
+    (window.devicePixelRatio || 1);
+
+  canvas.height =
+    height *
+    (window.devicePixelRatio || 1);
+
+  ctx.scale(
+    window.devicePixelRatio || 1,
+    window.devicePixelRatio || 1
+  );
+
+  ctx.clearRect(
+    0,
+    0,
+    width,
+    height
+  );
+
+  const max =
+    Math.max(
+      ...values,
+      100
+    );
+
+  const left = 45;
+  const right = 15;
+  const top = 20;
+  const bottom = 45;
+
+  const chartWidth =
+    width - left - right;
+
+  const chartHeight =
+    height - top - bottom;
+
+  ctx.strokeStyle =
+    "#e2e8f0";
+
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= 4; i++) {
+    const y =
+      top +
+      chartHeight -
+      (chartHeight * i / 4);
+
+    ctx.beginPath();
+
+    ctx.moveTo(left, y);
+
+    ctx.lineTo(
+      width - right,
+      y
+    );
+
+    ctx.stroke();
+  }
+
+  const points =
+    values.map(
+      (value, i) => ({
+        x:
+          left +
+          chartWidth *
+            (i /
+              Math.max(
+                values.length - 1,
+                1
+              )),
+
+        y:
+          top +
+          chartHeight -
+          (value / max) *
+            chartHeight
+      })
+    );
+
+  ctx.strokeStyle =
+    "#2563eb";
+
+  ctx.lineWidth = 3;
+
+  ctx.beginPath();
+
+  points.forEach(
+    (point, index) => {
+      if (index === 0) {
+        ctx.moveTo(
+          point.x,
+          point.y
+        );
+      } else {
+        ctx.lineTo(
+          point.x,
+          point.y
+        );
+      }
+    }
+  );
+
+  ctx.stroke();
+
+  points.forEach(point => {
+    ctx.beginPath();
+
+    ctx.arc(
+      point.x,
+      point.y,
+      4,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fillStyle =
+      "#2563eb";
+
+    ctx.fill();
+  });
+
+  ctx.fillStyle =
+    "#64748b";
+
+  ctx.font =
+    "11px Arial";
+
+  months.forEach(
+    (month, i) => {
+      const x =
+        left +
+        chartWidth *
+          (i /
+            Math.max(
+              months.length - 1,
+              1
+            ));
+
+      ctx.textAlign =
+        "center";
+
+      ctx.fillText(
+        month,
+        x,
+        height - 17
+      );
+    }
+  );
+}
+
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
+function loadSettingsForm() {
+  setValue(
+    "businessName",
+    settings.businessName
+  );
+
+  setValue(
+    "businessAddress",
+    settings.businessAddress
+  );
+
+  setValue(
+    "businessPhone",
+    settings.businessPhone
+  );
+
+  setValue(
+    "businessEmail",
+    settings.businessEmail
+  );
+
+  setValue(
+    "businessGSTIN",
+    settings.businessGSTIN
+  );
+
+  setValue(
+    "invoicePrefix",
+    settings.invoicePrefix
+  );
+
+  setValue(
+    "defaultGST",
+    settings.defaultGST
+  );
+
+  setValue(
+    "paymentTerms",
+    settings.paymentTerms
+  );
+
+  setValue(
+    "defaultNotes",
+    settings.defaultNotes
+  );
+
+  setValue(
+    "defaultTerms",
+    settings.defaultTerms
+  );
+
+  setValue(
+    "bankName",
+    settings.bankName
+  );
+
+  setValue(
+    "accountName",
+    settings.accountName
+  );
+
+  setValue(
+    "accountNumber",
+    settings.accountNumber
+  );
+
+  setValue(
+    "ifsc",
+    settings.ifsc
+  );
+
+  setValue(
+    "upi",
+    settings.upi
+  );
+
+  setValue(
+    "taxMode",
+    settings.taxMode
+  );
+
+  setValue(
+    "sPrefix",
+    settings.invoicePrefix
+  );
+
+  setValue(
+    "sNext",
+    getNextInvoiceNumber()
+  );
+
+  setTemplate(
+    settings.invoiceTemplate ||
+    "professional"
+  );
+}
+
+function saveSettings() {
+  settings = {
+    ...settings,
+
+    businessName:
+      getValue("businessName")
+        .trim(),
+
+    businessAddress:
+      getValue("businessAddress")
+        .trim(),
+
+    businessPhone:
+      getValue("businessPhone")
+        .trim(),
+
+    businessEmail:
+      getValue("businessEmail")
+        .trim(),
+
+    businessGSTIN:
+      getValue("businessGSTIN")
+        .trim()
+        .toUpperCase(),
+
+    invoicePrefix:
+      getValue("invoicePrefix")
+        .trim() || "INV-",
+
+    defaultGST:
+      number(
+        getValue("defaultGST")
+      ),
+
+    paymentTerms:
+      getValue("paymentTerms"),
+
+    defaultNotes:
+      getValue("defaultNotes"),
+
+    defaultTerms:
+      getValue("defaultTerms"),
+
+    bankName:
+      getValue("bankName"),
+
+    accountName:
+      getValue("accountName"),
+
+    accountNumber:
+      getValue("accountNumber"),
+
+    ifsc:
+      getValue("ifsc"),
+
+    upi:
+      getValue("upi"),
+
+    taxMode:
+      getValue("taxMode") ||
+      "auto",
+
+    invoiceTemplate:
+      currentTemplate
+  };
+
+  save(
+    STORAGE.settings,
+    settings
+  );
+
+  showToast(
+    "Settings saved successfully."
+  );
+
+  updateInvoicePreview();
+}
+
+/* =========================================================
+   LOGO
+   ========================================================= */
+
+function loadLogo(input) {
+  const file =
+    input?.files?.[0];
+
+  if (!file) return;
+
+  if (
+    !file.type.startsWith("image/")
+  ) {
+    showToast(
+      "Please select an image."
+    );
+
+    return;
+  }
+
+  const reader =
+    new FileReader();
+
+  reader.onload = event => {
+    settings.logo =
+      event.target.result;
+
+    save(
+      STORAGE.settings,
+      settings
+    );
+
+    const preview =
+      $("logoPreview");
+
+    if (preview) {
+      preview.innerHTML = `
+        <img
+          src="${settings.logo}"
+          alt="Logo"
+        >
+      `;
+    }
+
+    updateInvoicePreview();
+
+    showToast("Logo added.");
+  };
+
+  reader.readAsDataURL(file);
+}
+
+/* =========================================================
+   REMOVE LOGO
+   ========================================================= */
+
+function removeLogo() {
+  settings.logo = "";
+
+  save(
+    STORAGE.settings,
+    settings
+  );
+
+  const preview =
+    $("logoPreview");
+
+  if (preview) {
+    preview.innerHTML =
+      "No logo";
+  }
+
+  updateInvoicePreview();
+
+  showToast("Logo removed.");
+}
+
+/* =========================================================
+   SEARCH EVENTS
+   ========================================================= */
+
+function setupSearch() {
+  [
+    "invoiceSearch",
+    "invoiceStatusFilter",
+    "inventorySearch",
+    "inventoryCategoryFilter"
+  ].forEach(id => {
+    const el = $(id);
+
+    if (!el) return;
+
+    el.addEventListener(
+      "input",
+      () => {
+        if (
+          id.includes("invoice")
+        ) {
+          renderInvoices();
+        }
+
+        if (
+          id.includes("inventory")
+        ) {
+          renderInventory();
+        }
+      }
+    );
+
+    el.addEventListener(
+      "change",
+      () => {
+        if (
+          id.includes("invoice")
+        ) {
+          renderInvoices();
+        }
+
+        if (
+          id.includes("inventory")
+        ) {
+          renderInventory();
+        }
+      }
+    );
+  });
+}
+
+/* =========================================================
+   INVOICE FORM EVENTS
+   ========================================================= */
+
+function setupInvoiceEvents() {
+  const customer =
+    $("customerSelect");
+
+  if (customer) {
+    customer.addEventListener(
+      "change",
+      customerSelected
+    );
+  }
+
+  const product =
+    $("productSelect");
+
+  if (product) {
+    product.addEventListener(
+      "change",
+      productSelected
+    );
+  }
+
+  [
+    "customerGSTIN",
+    "customerName",
+    "customerAddress",
+    "customerPhone",
+    "customerEmail",
+    "invoiceDate",
+    "dueDate",
+    "invoiceNotes",
+    "invoiceTerms",
+    "paymentStatus",
+    "paymentMethod"
+  ].forEach(id => {
+    const el = $(id);
+
+    if (!el) return;
+
+    el.addEventListener(
+      "input",
+      updateInvoicePreview
+    );
+
+    el.addEventListener(
+      "change",
+      updateInvoicePreview
+    );
+  });
+}
+
+/* =========================================================
+   CATEGORY FILTER
+   ========================================================= */
+
+function populateCategoryFilter() {
+  const select =
+    $("inventoryCategoryFilter");
+
+  if (!select) return;
+
+  const categories =
+    [
+      ...new Set(
+        products
+          .map(
+            p => p.category
+          )
+          .filter(Boolean)
+      )
+    ]
+    .sort();
+
+  select.innerHTML =
+    `<option value="">All categories</option>` +
+    categories
+      .map(
+        category =>
+          `<option value="${escapeHTML(category)}">
+            ${escapeHTML(category)}
+          </option>`
+      )
+      .join("");
+}
+
+/* =========================================================
+   MODAL CLOSE BY BACKGROUND
+   ========================================================= */
+
+function setupModalClose() {
+  document
+    .querySelectorAll(".modal")
+    .forEach(modal => {
+      modal.addEventListener(
+        "click",
+        event => {
+          if (
+            event.target === modal
+          ) {
+            modal.classList.remove(
+              "active"
+            );
+          }
+        }
+      );
+    });
+}
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+function toggleDarkMode() {
+  document.body.classList.toggle(
+    "dark"
+  );
+
+  localStorage.setItem(
+    "invoicepro_dark",
+    document.body.classList.contains(
+      "dark"
+    )
+      ? "1"
+      : "0"
+  );
+}
+
+function loadDarkMode() {
+  if (
+    localStorage.getItem(
+      "invoicepro_dark"
+    ) === "1"
+  ) {
+    document.body.classList.add(
+      "dark"
+    );
   }
 }
 
-function setText(id, value) {
+/* =========================================================
+   MOBILE SIDEBAR
+   ========================================================= */
 
-  const element =
-    document.getElementById(id);
+function toggleMobileMenu() {
+  const sidebar =
+    document.querySelector(
+      ".sidebar"
+    );
 
-  if (element) {
-    element.textContent =
-      value ?? "";
+  if (sidebar) {
+    sidebar.classList.toggle(
+      "mobile-open"
+    );
   }
 }
 
+/* =========================================================
+   EXPOSE FUNCTIONS FOR HTML
+   ========================================================= */
 
-/* =========================
-   GLOBAL FUNCTIONS
-   Used by HTML onclick=""
-========================= */
+window.navigate = navigate;
 
-window.removeInvoiceItem = removeInvoiceItem;
+window.setTemplate = setTemplate;
 
-window.openProductModal = openProductModal;
-window.saveProduct = saveProduct;
-window.editProduct = editProduct;
-window.deleteProduct = deleteProduct;
+window.addInvoiceItem =
+  addInvoiceItem;
 
-window.openCustomerModal = openCustomerModal;
-window.saveCustomer = saveCustomer;
-window.editCustomer = editCustomer;
-window.deleteCustomer = deleteCustomer;
+window.removeInvoiceItem =
+  removeInvoiceItem;
 
-window.deleteInvoice = deleteInvoice;
-window.printSavedInvoice = printSavedInvoice;
+window.saveInvoice =
+  saveInvoice;
 
-window.saveSettings = saveSettings;
+window.clearInvoice =
+  clearInvoice;
 
-window.closeAllModals = closeAllModals;
+window.printInvoice =
+  printInvoice;
+
+window.editInvoice =
+  editInvoice;
+
+window.printSavedInvoice =
+  printSavedInvoice;
+
+window.deleteInvoice =
+  deleteInvoice;
+
+window.openProductModal =
+  openProductModal;
+
+window.closeProductModal =
+  closeProductModal;
+
+window.saveProduct =
+  saveProduct;
+
+window.editProduct =
+  editProduct;
+
+window.deleteProduct =
+  deleteProduct;
+
+window.openCustomerModal =
+  openCustomerModal;
+
+window.closeCustomerModal =
+  closeCustomerModal;
+
+window.saveCustomer =
+  saveCustomer;
+
+window.editCustomer =
+  editCustomer;
+
+window.deleteCustomer =
+  deleteCustomer;
+
+window.saveSettings =
+  saveSettings;
+
+window.loadLogo =
+  loadLogo;
+
+window.removeLogo =
+  removeLogo;
+
+window.toggleDarkMode =
+  toggleDarkMode;
+
+window.toggleMobileMenu =
+  toggleMobileMenu;
+
+window.customerSelected =
+  customerSelected;
+
+window.productSelected =
+  productSelected;
+
+/* =========================================================
+   INITIALIZE
+   ========================================================= */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    loadDarkMode();
+
+    setupNavigation();
+
+    setupInvoiceEvents();
+
+    setupSearch();
+
+    setupModalClose();
+
+    populateCustomerSelect();
+
+    populateProductSelect();
+
+    populateCategoryFilter();
+
+    renderDashboard();
+
+    renderInvoices();
+
+    renderInventory();
+
+    renderCustomers();
+
+    renderReports();
+
+    loadSettingsForm();
+
+    prepareNewInvoice();
+
+    /*
+      Make sure the default template
+      is loaded correctly.
+    */
+
+    setTemplate(
+      settings.invoiceTemplate ||
+      "professional"
+    );
+
+    updateInvoicePreview();
+
+    console.log(
+      "InvoicePro initialized successfully."
+    );
+  }
+);
