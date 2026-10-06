@@ -3,328 +3,978 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InvoicePro - Professional Invoice Generator</title>
+  <title>InvoicePro | Billing & Inventory</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header class="site-header">
-  <div class="nav">
-    <div class="logo">InvoicePro</div>
+<div class="app">
 
-    <nav>
-      <a href="#home">Home</a>
-      <a href="#invoice">Create Invoice</a>
-      <a href="#invoices">Invoices</a>
-      <a href="#customers">Customers</a>
-      <a href="#products">Products</a>
-      <a href="#reports">Reports</a>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-icon">I</div>
+      <span>InvoicePro</span>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <a href="#dashboard" class="nav-link active" data-page="dashboard">
+        <span>⌂</span> Dashboard
+      </a>
+
+      <a href="#billing" class="nav-link" data-page="billing">
+        <span>＋</span> New Invoice
+      </a>
+
+      <a href="#invoices" class="nav-link" data-page="invoices">
+        <span>▤</span> Invoices
+      </a>
+
+      <a href="#inventory" class="nav-link" data-page="inventory">
+        <span>▦</span> Inventory
+      </a>
+
+      <a href="#customers" class="nav-link" data-page="customers">
+        <span>♙</span> Customers
+      </a>
+
+      <a href="#reports" class="nav-link" data-page="reports">
+        <span>▥</span> Reports
+      </a>
+
+      <a href="#settings" class="nav-link" data-page="settings">
+        <span>⚙</span> Settings
+      </a>
+
     </nav>
 
-    <a href="#invoice" class="btn">Create Invoice</a>
-  </div>
-</header>
-
-<main>
-
-<section id="home" class="hero">
-  <div>
-    <p class="tag">FREE • GST READY • NO SIGNUP</p>
-    <h1>Create Professional Invoices in Seconds.</h1>
-    <p>
-      Create clean, GST-ready invoices for your business,
-      freelancers and customers.
-    </p>
-
-    <div class="buttons">
-      <a href="#invoice" class="btn">Create Invoice</a>
-      <a href="#features" class="btn secondary">View Features</a>
+    <div class="sidebar-bottom">
+      <small>InvoicePro</small>
+      <span>Free Billing System</span>
     </div>
-  </div>
 
-  <div class="invoice-card">
-    <div class="mini-invoice">
-      <div class="mini-top">
-        <strong>INVOICE</strong>
-        <span>#INV-001</span>
+  </aside>
+
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+
+      <div>
+        <h2 id="pageTitle">Dashboard</h2>
+        <p id="pageSubtitle">Overview of your business</p>
       </div>
-      <hr>
-      <strong>Your Business</strong>
-      <p>Professional Invoice</p>
-      <div class="mini-total">₹12,450.00</div>
+
+      <button class="primary-btn" onclick="showPage('billing')">
+        + New Invoice
+      </button>
+
+    </header>
+
+
+    <!-- ================= DASHBOARD ================= -->
+
+    <section id="dashboard" class="page active-page">
+
+      <div class="welcome">
+        <div>
+          <span class="eyebrow">BUSINESS OVERVIEW</span>
+          <h1>Good morning 👋</h1>
+          <p>Here's what's happening with your business.</p>
+        </div>
+
+        <button class="primary-btn" onclick="showPage('billing')">
+          Create Invoice
+        </button>
+      </div>
+
+
+      <div class="stats-grid">
+
+        <div class="stat-card">
+          <span>Total Sales</span>
+          <strong id="dashSales">₹0.00</strong>
+          <small>This month</small>
+        </div>
+
+        <div class="stat-card">
+          <span>Invoices</span>
+          <strong id="dashInvoices">0</strong>
+          <small>Total invoices</small>
+        </div>
+
+        <div class="stat-card">
+          <span>Pending</span>
+          <strong id="dashPending">₹0.00</strong>
+          <small>Outstanding</small>
+        </div>
+
+        <div class="stat-card">
+          <span>Low Stock</span>
+          <strong id="dashLowStock">0</strong>
+          <small>Products need attention</small>
+        </div>
+
+      </div>
+
+
+      <div class="dashboard-grid">
+
+        <div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Recent Invoices</h3>
+              <p>Your latest billing activity</p>
+            </div>
+
+            <button class="text-btn" onclick="showPage('invoices')">
+              View all
+            </button>
+          </div>
+
+          <div id="recentInvoices" class="table-container">
+            <div class="empty-state">
+              <div class="empty-icon">▤</div>
+              <h3>No invoices yet</h3>
+              <p>Create your first professional invoice.</p>
+              <button class="primary-btn" onclick="showPage('billing')">
+                Create Invoice
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Low Stock</h3>
+              <p>Products running low</p>
+            </div>
+
+            <button class="text-btn" onclick="showPage('inventory')">
+              Inventory
+            </button>
+          </div>
+
+          <div id="lowStockList">
+            <div class="empty-state small">
+              <div class="empty-icon">✓</div>
+              <p>All products are sufficiently stocked.</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= BILLING ================= -->
+
+    <section id="billing" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">BILLING</span>
+          <h1>Create New Invoice</h1>
+          <p>Generate a professional GST-ready invoice.</p>
+        </div>
+      </div>
+
+
+      <div class="billing-layout">
+
+        <div class="billing-form panel">
+
+          <div class="form-section">
+
+            <div class="section-title">
+              <span>01</span>
+              <div>
+                <h3>Invoice Details</h3>
+                <p>Basic invoice information</p>
+              </div>
+            </div>
+
+            <div class="form-grid three">
+
+              <label>
+                Invoice Number
+                <input id="invoiceNumber" type="text">
+              </label>
+
+              <label>
+                Invoice Date
+                <input id="invoiceDate" type="date">
+              </label>
+
+              <label>
+                Due Date
+                <input id="dueDate" type="date">
+              </label>
+
+            </div>
+
+          </div>
+
+
+          <div class="form-section">
+
+            <div class="section-title">
+              <span>02</span>
+              <div>
+                <h3>Customer</h3>
+                <p>Who are you billing?</p>
+              </div>
+            </div>
+
+            <div class="customer-selector">
+
+              <select id="customerSelect">
+                <option value="">Select existing customer</option>
+              </select>
+
+              <button type="button" class="secondary-btn" onclick="addNewCustomer()">
+                + New Customer
+              </button>
+
+            </div>
+
+            <div class="form-grid two">
+
+              <label>
+                Customer Name
+                <input id="customerName" type="text" placeholder="Customer name">
+              </label>
+
+              <label>
+                GSTIN
+                <input id="customerGSTIN" type="text" placeholder="Optional GSTIN">
+              </label>
+
+              <label class="full">
+                Billing Address
+                <textarea id="customerAddress" placeholder="Customer billing address"></textarea>
+              </label>
+
+              <label>
+                Phone
+                <input id="customerPhone" type="tel" placeholder="+91">
+              </label>
+
+              <label>
+                Email
+                <input id="customerEmail" type="email" placeholder="customer@email.com">
+              </label>
+
+            </div>
+
+          </div>
+
+
+          <div class="form-section">
+
+            <div class="section-title">
+              <span>03</span>
+              <div>
+                <h3>Items</h3>
+                <p>Add products or services</p>
+              </div>
+            </div>
+
+
+            <div class="item-entry">
+
+              <div class="form-grid item-grid">
+
+                <label class="item-product">
+                  Product / Service
+                  <select id="productSelect">
+                    <option value="">Select product</option>
+                  </select>
+                </label>
+
+                <label>
+                  HSN / SAC
+                  <input id="itemHSN" type="text" placeholder="HSN/SAC">
+                </label>
+
+                <label>
+                  Qty
+                  <input id="itemQty" type="number" min="0.01" step="0.01" value="1">
+                </label>
+
+                <label>
+                  Rate
+                  <input id="itemRate" type="number" min="0" step="0.01" value="0">
+                </label>
+
+                <label>
+                  Discount %
+                  <input id="itemDiscount" type="number" min="0" max="100" step="0.01" value="0">
+                </label>
+
+                <label>
+                  GST %
+                  <select id="itemGST">
+                    <option value="0">0%</option>
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18" selected>18%</option>
+                    <option value="28">28%</option>
+                  </select>
+                </label>
+
+              </div>
+
+              <button type="button" class="primary-btn add-item-btn" onclick="addInvoiceItem()">
+                + Add Item
+              </button>
+
+            </div>
+
+
+            <div class="invoice-items-wrapper">
+
+              <table class="items-table">
+
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Product</th>
+                    <th>HSN/SAC</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Discount</th>
+                    <th>GST</th>
+                    <th>Amount</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody id="invoiceItems">
+
+                  <tr class="empty-row">
+                    <td colspan="9">
+                      No items added yet.
+                    </td>
+                  </tr>
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+
+          <div class="form-section">
+
+            <div class="section-title">
+              <span>04</span>
+              <div>
+                <h3>Payment</h3>
+                <p>Payment and invoice status</p>
+              </div>
+            </div>
+
+            <div class="form-grid two">
+
+              <label>
+                Payment Status
+                <select id="paymentStatus">
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Partially Paid">Partially Paid</option>
+                </select>
+              </label>
+
+              <label>
+                Payment Method
+                <select id="paymentMethod">
+                  <option value="UPI">UPI</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+
+            </div>
+
+          </div>
+
+
+          <div class="form-actions">
+
+            <button class="secondary-btn" onclick="clearInvoice()">
+              Clear
+            </button>
+
+            <button class="primary-btn" onclick="saveInvoice()">
+              Save Invoice
+            </button>
+
+            <button class="dark-btn" onclick="printInvoice()">
+              🖨 Print Invoice
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- LIVE TOTALS -->
+
+        <aside class="invoice-summary panel">
+
+          <div class="summary-header">
+            <span>INVOICE TOTAL</span>
+            <strong id="summaryInvoiceNumber">INV-001</strong>
+          </div>
+
+          <div class="summary-lines">
+
+            <div>
+              <span>Subtotal</span>
+              <strong id="summarySubtotal">₹0.00</strong>
+            </div>
+
+            <div>
+              <span>Discount</span>
+              <strong id="summaryDiscount">₹0.00</strong>
+            </div>
+
+            <div>
+              <span>Taxable Amount</span>
+              <strong id="summaryTaxable">₹0.00</strong>
+            </div>
+
+            <div>
+              <span>CGST</span>
+              <strong id="summaryCGST">₹0.00</strong>
+            </div>
+
+            <div>
+              <span>SGST</span>
+              <strong id="summarySGST">₹0.00</strong>
+            </div>
+
+          </div>
+
+          <div class="summary-total">
+            <span>Grand Total</span>
+            <strong id="summaryTotal">₹0.00</strong>
+          </div>
+
+          <div class="amount-words">
+            <small>AMOUNT IN WORDS</small>
+            <p id="summaryWords">Zero Rupees Only</p>
+          </div>
+
+        </aside>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= INVOICES ================= -->
+
+    <section id="invoices" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">BILLING HISTORY</span>
+          <h1>Invoices</h1>
+          <p>View and manage your invoices.</p>
+        </div>
+
+        <button class="primary-btn" onclick="showPage('billing')">
+          + New Invoice
+        </button>
+      </div>
+
+      <div class="panel">
+
+        <div class="toolbar">
+
+          <input
+            id="invoiceSearch"
+            type="search"
+            placeholder="Search invoices..."
+            oninput="renderInvoices()"
+          >
+
+          <select id="invoiceStatusFilter" onchange="renderInvoices()">
+            <option value="">All Statuses</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+            <option value="Partially Paid">Partially Paid</option>
+          </select>
+
+        </div>
+
+        <div id="invoiceList"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= INVENTORY ================= -->
+
+    <section id="inventory" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">PRODUCT MANAGEMENT</span>
+          <h1>Inventory</h1>
+          <p>Manage products, prices and stock.</p>
+        </div>
+
+        <button class="primary-btn" onclick="openProductModal()">
+          + Add Product
+        </button>
+      </div>
+
+
+      <div class="stats-grid inventory-stats">
+
+        <div class="stat-card">
+          <span>Total Products</span>
+          <strong id="inventoryProducts">0</strong>
+        </div>
+
+        <div class="stat-card">
+          <span>Total Units</span>
+          <strong id="inventoryUnits">0</strong>
+        </div>
+
+        <div class="stat-card">
+          <span>Stock Value</span>
+          <strong id="inventoryValue">₹0.00</strong>
+        </div>
+
+        <div class="stat-card warning">
+          <span>Low Stock</span>
+          <strong id="inventoryLowStock">0</strong>
+        </div>
+
+      </div>
+
+
+      <div class="panel">
+
+        <div class="toolbar">
+
+          <input
+            id="productSearch"
+            type="search"
+            placeholder="Search products..."
+            oninput="renderProducts()"
+          >
+
+          <select id="categoryFilter" onchange="renderProducts()">
+            <option value="">All Categories</option>
+          </select>
+
+        </div>
+
+        <div id="productList"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= CUSTOMERS ================= -->
+
+    <section id="customers" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">CUSTOMER MANAGEMENT</span>
+          <h1>Customers</h1>
+          <p>Keep customer information organised.</p>
+        </div>
+
+        <button class="primary-btn" onclick="openCustomerModal()">
+          + Add Customer
+        </button>
+      </div>
+
+      <div class="panel">
+
+        <div class="toolbar">
+
+          <input
+            id="customerSearch"
+            type="search"
+            placeholder="Search customers..."
+            oninput="renderCustomers()"
+          >
+
+        </div>
+
+        <div id="customerList"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= REPORTS ================= -->
+
+    <section id="reports" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">BUSINESS ANALYTICS</span>
+          <h1>Reports</h1>
+          <p>Understand your sales and GST.</p>
+        </div>
+      </div>
+
+
+      <div class="stats-grid">
+
+        <div class="stat-card">
+          <span>Total Sales</span>
+          <strong id="reportSales">₹0.00</strong>
+        </div>
+
+        <div class="stat-card">
+          <span>Total GST</span>
+          <strong id="reportGST">₹0.00</strong>
+        </div>
+
+        <div class="stat-card">
+          <span>Paid</span>
+          <strong id="reportPaid">₹0.00</strong>
+        </div>
+
+        <div class="stat-card">
+          <span>Pending</span>
+          <strong id="reportPending">₹0.00</strong>
+        </div>
+
+      </div>
+
+
+      <div class="dashboard-grid">
+
+        <div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Sales Overview</h3>
+              <p>Invoice totals</p>
+            </div>
+          </div>
+
+          <div class="report-bars" id="salesBars"></div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Business Summary</h3>
+              <p>Current statistics</p>
+            </div>
+          </div>
+
+          <div class="report-summary">
+
+            <div>
+              <span>Invoices</span>
+              <strong id="reportInvoiceCount">0</strong>
+            </div>
+
+            <div>
+              <span>Customers</span>
+              <strong id="reportCustomerCount">0</strong>
+            </div>
+
+            <div>
+              <span>Products</span>
+              <strong id="reportProductCount">0</strong>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= SETTINGS ================= -->
+
+    <section id="settings" class="page">
+
+      <div class="page-heading">
+        <div>
+          <span class="eyebrow">BUSINESS SETTINGS</span>
+          <h1>Settings</h1>
+          <p>Configure your invoice information.</p>
+        </div>
+      </div>
+
+
+      <div class="panel settings-panel">
+
+        <div class="form-section">
+
+          <div class="section-title">
+            <span>01</span>
+            <div>
+              <h3>Business Information</h3>
+              <p>This information appears on your invoices.</p>
+            </div>
+          </div>
+
+          <div class="form-grid two">
+
+            <label>
+              Business Name
+              <input id="settingBusiness" placeholder="Your business name">
+            </label>
+
+            <label>
+              GSTIN
+              <input id="settingGSTIN" placeholder="GSTIN">
+            </label>
+
+            <label class="full">
+              Business Address
+              <textarea id="settingAddress" placeholder="Full business address"></textarea>
+            </label>
+
+            <label>
+              Phone
+              <input id="settingPhone" placeholder="+91">
+            </label>
+
+            <label>
+              Email
+              <input id="settingEmail" placeholder="business@email.com">
+            </label>
+
+          </div>
+
+        </div>
+
+
+        <div class="form-section">
+
+          <div class="section-title">
+            <span>02</span>
+            <div>
+              <h3>Payment Details</h3>
+              <p>Displayed on printed invoices.</p>
+            </div>
+          </div>
+
+          <div class="form-grid two">
+
+            <label>
+              UPI ID
+              <input id="settingUPI" placeholder="business@upi">
+            </label>
+
+            <label>
+              Bank Account
+              <input id="settingBank" placeholder="Account number">
+            </label>
+
+          </div>
+
+        </div>
+
+
+        <div class="form-actions">
+
+          <button class="primary-btn" onclick="saveSettings()">
+            Save Settings
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- PRODUCT MODAL -->
+
+<div id="productModal" class="modal">
+
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <div>
+        <h2>Add Product</h2>
+        <p>Add a product to your inventory.</p>
+      </div>
+
+      <button onclick="closeProductModal()" class="close-btn">×</button>
     </div>
-  </div>
-</section>
 
-
-<section id="features" class="section">
-  <h2>Everything you need.</h2>
-
-  <div class="cards">
-    <div class="card">
-      <h3>⚡ Fast</h3>
-      <p>Create invoices in seconds.</p>
-    </div>
-
-    <div class="card">
-      <h3>🇮🇳 GST Ready</h3>
-      <p>Designed for Indian businesses.</p>
-    </div>
-
-    <div class="card">
-      <h3>📄 A4 PDF</h3>
-      <p>Professional one-page invoices.</p>
-    </div>
-
-    <div class="card">
-      <h3>🔒 Private</h3>
-      <p>Your information stays on your device.</p>
-    </div>
-  </div>
-</section>
-
-
-<section id="invoice" class="section">
-
-  <h2>Create Invoice</h2>
-
-  <div class="invoice-form">
-
-    <h3>Business Details</h3>
-
-    <div class="form-grid">
+    <div class="form-grid two">
 
       <label>
-        Business Name
-        <input id="business" placeholder="Your business name">
+        Product Name
+        <input id="newProductName" placeholder="Product name">
       </label>
 
       <label>
-        GSTIN
-        <input id="businessGSTIN" placeholder="22AAAAA0000A1Z5">
-      </label>
-
-      <label class="full">
-        Business Address
-        <textarea id="businessAddress" placeholder="Full business address"></textarea>
+        SKU
+        <input id="newProductSKU" placeholder="SKU">
       </label>
 
       <label>
-        Phone
-        <input id="businessPhone" placeholder="+91 XXXXX XXXXX">
-      </label>
-
-      <label>
-        Email
-        <input id="businessEmail" type="email" placeholder="business@email.com">
-      </label>
-
-    </div>
-
-
-    <h3>Customer Details</h3>
-
-    <div class="form-grid">
-
-      <label>
-        Customer Name
-        <input id="customer" placeholder="Customer name">
-      </label>
-
-      <label>
-        Customer GSTIN
-        <input id="customerGSTIN" placeholder="Optional GSTIN">
-      </label>
-
-      <label class="full">
-        Billing Address
-        <textarea id="customerAddress" placeholder="Customer billing address"></textarea>
-      </label>
-
-      <label>
-        Customer Phone
-        <input id="customerPhone" placeholder="+91 XXXXX XXXXX">
-      </label>
-
-      <label>
-        Customer Email
-        <input id="customerEmail" type="email" placeholder="customer@email.com">
-      </label>
-
-    </div>
-
-
-    <h3>Invoice Details</h3>
-
-    <div class="form-grid">
-
-      <label>
-        Invoice Number
-        <input id="invoiceNumber" value="INV-001">
-      </label>
-
-      <label>
-        Invoice Date
-        <input id="invoiceDate" type="date">
-      </label>
-
-      <label>
-        Due Date
-        <input id="dueDate" type="date">
-      </label>
-
-      <label>
-        Payment Status
-        <select id="paymentStatus">
-          <option>Pending</option>
-          <option>Paid</option>
-          <option>Partially Paid</option>
-        </select>
-      </label>
-
-    </div>
-
-
-    <h3>Product / Service</h3>
-
-    <div class="form-grid">
-
-      <label>
-        Product / Service
-        <input id="product" placeholder="Product or service">
+        Category
+        <input id="newProductCategory" placeholder="Medical Equipment">
       </label>
 
       <label>
         HSN / SAC
-        <input id="hsn" placeholder="HSN/SAC">
+        <input id="newProductHSN" placeholder="HSN/SAC">
       </label>
 
       <label>
-        Quantity
-        <input id="quantity" type="number" min="0" value="1">
+        Purchase Price
+        <input id="newProductPurchase" type="number" min="0" step="0.01">
       </label>
 
       <label>
-        Price
-        <input id="price" type="number" min="0" value="0">
-      </label>
-
-      <label>
-        Discount %
-        <input id="discount" type="number" min="0" value="0">
+        Selling Price
+        <input id="newProductPrice" type="number" min="0" step="0.01">
       </label>
 
       <label>
         GST %
-        <input id="gst" type="number" min="0" value="18">
+        <select id="newProductGST">
+          <option value="0">0%</option>
+          <option value="5">5%</option>
+          <option value="12">12%</option>
+          <option value="18" selected>18%</option>
+          <option value="28">28%</option>
+        </select>
+      </label>
+
+      <label>
+        Opening Stock
+        <input id="newProductStock" type="number" min="0" step="0.01">
+      </label>
+
+      <label>
+        Low Stock Limit
+        <input id="newProductLowStock" type="number" min="0" step="0.01" value="5">
+      </label>
+
+    </div>
+
+    <div class="modal-actions">
+
+      <button class="secondary-btn" onclick="closeProductModal()">
+        Cancel
+      </button>
+
+      <button class="primary-btn" onclick="saveProduct()">
+        Add Product
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- CUSTOMER MODAL -->
+
+<div id="customerModal" class="modal">
+
+  <div class="modal-box">
+
+    <div class="modal-header">
+
+      <div>
+        <h2>Add Customer</h2>
+        <p>Save customer details for future invoices.</p>
+      </div>
+
+      <button onclick="closeCustomerModal()" class="close-btn">×</button>
+
+    </div>
+
+
+    <div class="form-grid two">
+
+      <label>
+        Customer Name
+        <input id="newCustomerName" placeholder="Customer name">
+      </label>
+
+      <label>
+        GSTIN
+        <input id="newCustomerGSTIN" placeholder="GSTIN">
+      </label>
+
+      <label class="full">
+        Address
+        <textarea id="newCustomerAddress" placeholder="Billing address"></textarea>
+      </label>
+
+      <label>
+        Phone
+        <input id="newCustomerPhone" placeholder="+91">
+      </label>
+
+      <label>
+        Email
+        <input id="newCustomerEmail" placeholder="customer@email.com">
       </label>
 
     </div>
 
 
-    <div class="button-row">
-      <button class="btn" onclick="calculateInvoice()">
-        Calculate Invoice
+    <div class="modal-actions">
+
+      <button class="secondary-btn" onclick="closeCustomerModal()">
+        Cancel
       </button>
 
-      <button class="btn secondary" onclick="window.print()">
-        🖨 Print / Save PDF
+      <button class="primary-btn" onclick="saveCustomer()">
+        Add Customer
       </button>
-    </div>
-
-
-    <div class="result">
-
-      <div>
-        <span>Subtotal</span>
-        <strong id="subtotal">₹0.00</strong>
-      </div>
-
-      <div>
-        <span>Discount</span>
-        <strong id="discountAmount">₹0.00</strong>
-      </div>
-
-      <div>
-        <span>Taxable Amount</span>
-        <strong id="taxableAmount">₹0.00</strong>
-      </div>
-
-      <div>
-        <span>CGST</span>
-        <strong id="cgstAmount">₹0.00</strong>
-      </div>
-
-      <div>
-        <span>SGST</span>
-        <strong id="sgstAmount">₹0.00</strong>
-      </div>
-
-      <div class="grand-total">
-        <span>Grand Total</span>
-        <strong id="total">₹0.00</strong>
-      </div>
-
-      <div class="amount-words">
-        <span>Amount in Words</span>
-        <strong id="amountWords">Zero Rupees Only</strong>
-      </div>
 
     </div>
 
   </div>
 
-</section>
-
-
-<section id="invoices" class="section dashboard-section">
-  <h2>Invoices</h2>
-  <p>Your saved invoices will appear here.</p>
-</section>
-
-
-<section id="customers" class="section dashboard-section">
-  <h2>Customers</h2>
-  <p>Keep your customer information organised.</p>
-</section>
-
-
-<section id="products" class="section dashboard-section">
-  <h2>Products</h2>
-  <p>Keep frequently used products ready.</p>
-</section>
-
-
-<section id="reports" class="section dashboard-section">
-  <h2>Reports</h2>
-
-  <div class="cards">
-
-    <div class="card">
-      <h3>Total Invoices</h3>
-      <p id="reportInvoices">0</p>
-    </div>
-
-    <div class="card">
-      <h3>Total Sales</h3>
-      <p id="reportSales">₹0</p>
-    </div>
-
-    <div class="card">
-      <h3>Total GST</h3>
-      <p id="reportGST">₹0</p>
-    </div>
-
-  </div>
-</section>
-
-</main>
-
-
-<footer>
-  © 2026 InvoicePro · Free Invoice Generator
-</footer>
+</div>
 
 
 <!-- PRINTABLE INVOICE -->
@@ -334,47 +984,83 @@
   <div class="print-header">
 
     <div>
-      <h1 id="printBusiness">Your Business</h1>
+
+      <h1 id="printBusinessName">Your Business</h1>
+
       <p id="printBusinessAddress"></p>
+
       <p>
         <span id="printBusinessPhone"></span>
         <span id="printBusinessEmail"></span>
       </p>
-      <p><strong>GSTIN:</strong> <span id="printBusinessGSTIN"></span></p>
+
+      <p>
+        <strong>GSTIN:</strong>
+        <span id="printBusinessGSTIN">-</span>
+      </p>
+
     </div>
 
-    <div class="invoice-title">
+
+    <div class="print-invoice-title">
+
       <h2>TAX INVOICE</h2>
-      <p><strong>Invoice No:</strong> <span id="printInvoiceNumber"></span></p>
-      <p><strong>Date:</strong> <span id="printInvoiceDate"></span></p>
-      <p><strong>Due Date:</strong> <span id="printDueDate"></span></p>
+
+      <p>
+        <strong>Invoice No:</strong>
+        <span id="printInvoiceNo"></span>
+      </p>
+
+      <p>
+        <strong>Date:</strong>
+        <span id="printInvoiceDate"></span>
+      </p>
+
+      <p>
+        <strong>Due:</strong>
+        <span id="printDueDate"></span>
+      </p>
+
     </div>
 
   </div>
 
 
-  <div class="bill-section">
+  <div class="print-billing">
 
     <div>
-      <h4>BILL TO</h4>
-      <strong id="printCustomer"></strong>
+
+      <strong>BILL TO</strong>
+
+      <h3 id="printCustomerName">Customer</h3>
+
       <p id="printCustomerAddress"></p>
+
       <p id="printCustomerPhone"></p>
-      <p id="printCustomerEmail"></p>
-      <p><strong>GSTIN:</strong> <span id="printCustomerGSTIN"></span></p>
+
+      <p>
+        <strong>GSTIN:</strong>
+        <span id="printCustomerGSTIN">-</span>
+      </p>
+
     </div>
 
-    <div class="status-box">
-      <strong>Payment Status</strong>
-      <span id="printPaymentStatus"></span>
+
+    <div class="print-status">
+
+      <small>PAYMENT STATUS</small>
+
+      <strong id="printPaymentStatus">Pending</strong>
+
     </div>
 
   </div>
 
 
-  <table class="invoice-table">
+  <table class="print-items">
 
     <thead>
+
       <tr>
         <th>#</th>
         <th>Description</th>
@@ -385,36 +1071,32 @@
         <th>GST</th>
         <th>Amount</th>
       </tr>
+
     </thead>
 
-    <tbody>
-      <tr>
-        <td>1</td>
-        <td id="printProduct">Product / Service</td>
-        <td id="printHSN">-</td>
-        <td id="printQuantity">1</td>
-        <td id="printPrice">₹0.00</td>
-        <td id="printDiscount">₹0.00</td>
-        <td id="printGST">18%</td>
-        <td id="printAmount">₹0.00</td>
-      </tr>
-    </tbody>
+    <tbody id="printItems"></tbody>
 
   </table>
 
 
-  <div class="print-bottom">
+  <div class="print-lower">
 
-    <div class="payment-details">
+    <div>
+
       <h4>PAYMENT DETAILS</h4>
-      <p>Bank / UPI details can be added here.</p>
+
+      <p id="printUPI"></p>
+
+      <p id="printBank"></p>
 
       <h4>NOTES</h4>
+
       <p>Thank you for your business.</p>
+
     </div>
 
 
-    <div class="print-totals">
+    <div class="print-total-box">
 
       <p>
         <span>Subtotal</span>
@@ -423,7 +1105,7 @@
 
       <p>
         <span>Discount</span>
-        <strong id="printDiscountTotal">₹0.00</strong>
+        <strong id="printDiscount">₹0.00</strong>
       </p>
 
       <p>
@@ -441,9 +1123,9 @@
         <strong id="printSGST">₹0.00</strong>
       </p>
 
-      <p class="final-total">
-        <span>Total</span>
-        <strong id="printTotal">₹0.00</strong>
+      <p class="print-grand-total">
+        <span>Grand Total</span>
+        <strong id="printGrandTotal">₹0.00</strong>
       </p>
 
     </div>
@@ -451,21 +1133,29 @@
   </div>
 
 
-  <div class="amount-words-print">
+  <div class="print-words">
+
     <strong>Amount in Words:</strong>
-    <span id="printAmountWords">Zero Rupees Only</span>
+
+    <span id="printAmountWords">
+      Zero Rupees Only
+    </span>
+
   </div>
 
 
-  <div class="signature">
-    <p>Authorized Signature</p>
+  <div class="print-signature">
+
     <div></div>
+
+    <span>Authorized Signature</span>
+
   </div>
 
 </div>
 
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 
 </body>
 </html>
