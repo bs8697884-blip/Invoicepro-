@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InvoicePro - Free Invoice Generator</title>
+  <title>InvoicePro - Professional Invoice Generator</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header>
+<header class="site-header">
   <div class="nav">
     <div class="logo">InvoicePro</div>
 
@@ -22,43 +22,41 @@
       <a href="#reports">Reports</a>
     </nav>
 
-    <a class="btn" href="#invoice">Create Invoice</a>
+    <a href="#invoice" class="btn">Create Invoice</a>
   </div>
 </header>
+
+<main>
 
 <section id="home" class="hero">
   <div>
     <p class="tag">FREE • GST READY • NO SIGNUP</p>
-
     <h1>Create Professional Invoices in Seconds.</h1>
-
     <p>
-      Create beautiful GST-ready invoices for your business,
-      freelancers and customers. Simple, fast and completely free.
+      Create clean, GST-ready invoices for your business,
+      freelancers and customers.
     </p>
 
     <div class="buttons">
-      <a class="btn" href="#invoice">Create Invoice</a>
-      <a class="btn secondary" href="#features">View Features</a>
+      <a href="#invoice" class="btn">Create Invoice</a>
+      <a href="#features" class="btn secondary">View Features</a>
     </div>
   </div>
 
   <div class="invoice-card">
-    <div class="invoice-preview">
-      <div class="invoice-top">
+    <div class="mini-invoice">
+      <div class="mini-top">
         <strong>INVOICE</strong>
         <span>#INV-001</span>
       </div>
-
       <hr>
-
-      <p>Dhanvantri Healthcare</p>
-      <p>Medical Equipment & Supplies</p>
-
-      <div class="amount">₹12,450.00</div>
+      <strong>Your Business</strong>
+      <p>Professional Invoice</p>
+      <div class="mini-total">₹12,450.00</div>
     </div>
   </div>
 </section>
+
 
 <section id="features" class="section">
   <h2>Everything you need.</h2>
@@ -75,8 +73,8 @@
     </div>
 
     <div class="card">
-      <h3>📄 PDF Ready</h3>
-      <p>Print or save your invoices.</p>
+      <h3>📄 A4 PDF</h3>
+      <p>Professional one-page invoices.</p>
     </div>
 
     <div class="card">
@@ -86,106 +84,386 @@
   </div>
 </section>
 
+
 <section id="invoice" class="section">
+
   <h2>Create Invoice</h2>
 
   <div class="invoice-form">
 
-    <label>
-      Business Name
-      <input id="business" placeholder="Your business name">
-    </label>
+    <h3>Business Details</h3>
 
-    <label>
-      Customer Name
-      <input id="customer" placeholder="Customer name">
-    </label>
+    <div class="form-grid">
 
-    <label>
-      GSTIN
-      <input id="gstin" placeholder="Optional GSTIN">
-    </label>
+      <label>
+        Business Name
+        <input id="business" placeholder="Your business name">
+      </label>
 
-    <label>
-      Product / Service
-      <input id="product" placeholder="Product or service">
-    </label>
+      <label>
+        GSTIN
+        <input id="businessGSTIN" placeholder="22AAAAA0000A1Z5">
+      </label>
 
-    <div class="form-row">
+      <label class="full">
+        Business Address
+        <textarea id="businessAddress" placeholder="Full business address"></textarea>
+      </label>
+
+      <label>
+        Phone
+        <input id="businessPhone" placeholder="+91 XXXXX XXXXX">
+      </label>
+
+      <label>
+        Email
+        <input id="businessEmail" type="email" placeholder="business@email.com">
+      </label>
+
+    </div>
+
+
+    <h3>Customer Details</h3>
+
+    <div class="form-grid">
+
+      <label>
+        Customer Name
+        <input id="customer" placeholder="Customer name">
+      </label>
+
+      <label>
+        Customer GSTIN
+        <input id="customerGSTIN" placeholder="Optional GSTIN">
+      </label>
+
+      <label class="full">
+        Billing Address
+        <textarea id="customerAddress" placeholder="Customer billing address"></textarea>
+      </label>
+
+      <label>
+        Customer Phone
+        <input id="customerPhone" placeholder="+91 XXXXX XXXXX">
+      </label>
+
+      <label>
+        Customer Email
+        <input id="customerEmail" type="email" placeholder="customer@email.com">
+      </label>
+
+    </div>
+
+
+    <h3>Invoice Details</h3>
+
+    <div class="form-grid">
+
+      <label>
+        Invoice Number
+        <input id="invoiceNumber" value="INV-001">
+      </label>
+
+      <label>
+        Invoice Date
+        <input id="invoiceDate" type="date">
+      </label>
+
+      <label>
+        Due Date
+        <input id="dueDate" type="date">
+      </label>
+
+      <label>
+        Payment Status
+        <select id="paymentStatus">
+          <option>Pending</option>
+          <option>Paid</option>
+          <option>Partially Paid</option>
+        </select>
+      </label>
+
+    </div>
+
+
+    <h3>Product / Service</h3>
+
+    <div class="form-grid">
+
+      <label>
+        Product / Service
+        <input id="product" placeholder="Product or service">
+      </label>
+
+      <label>
+        HSN / SAC
+        <input id="hsn" placeholder="HSN/SAC">
+      </label>
 
       <label>
         Quantity
-        <input id="quantity" type="number" value="1">
+        <input id="quantity" type="number" min="0" value="1">
       </label>
 
       <label>
         Price
-        <input id="price" type="number" value="0">
+        <input id="price" type="number" min="0" value="0">
+      </label>
+
+      <label>
+        Discount %
+        <input id="discount" type="number" min="0" value="0">
       </label>
 
       <label>
         GST %
-        <input id="gst" type="number" value="18">
+        <input id="gst" type="number" min="0" value="18">
       </label>
 
     </div>
 
-    <button class="btn" onclick="calculateInvoice()">
-      Calculate Invoice
-    </button>
 
-    <div class="result">
-      <p>Subtotal: <strong id="subtotal">₹0.00</strong></p>
-      <p>GST: <strong id="gstAmount">₹0.00</strong></p>
-      <h2>Total: <strong id="total">₹0.00</strong></h2>
+    <div class="button-row">
+      <button class="btn" onclick="calculateInvoice()">
+        Calculate Invoice
+      </button>
+
+      <button class="btn secondary" onclick="window.print()">
+        🖨 Print / Save PDF
+      </button>
     </div>
 
-    <button class="btn" onclick="window.print()">
-      🖨 Print / Save PDF
-    </button>
+
+    <div class="result">
+
+      <div>
+        <span>Subtotal</span>
+        <strong id="subtotal">₹0.00</strong>
+      </div>
+
+      <div>
+        <span>Discount</span>
+        <strong id="discountAmount">₹0.00</strong>
+      </div>
+
+      <div>
+        <span>Taxable Amount</span>
+        <strong id="taxableAmount">₹0.00</strong>
+      </div>
+
+      <div>
+        <span>CGST</span>
+        <strong id="cgstAmount">₹0.00</strong>
+      </div>
+
+      <div>
+        <span>SGST</span>
+        <strong id="sgstAmount">₹0.00</strong>
+      </div>
+
+      <div class="grand-total">
+        <span>Grand Total</span>
+        <strong id="total">₹0.00</strong>
+      </div>
+
+      <div class="amount-words">
+        <span>Amount in Words</span>
+        <strong id="amountWords">Zero Rupees Only</strong>
+      </div>
+
+    </div>
 
   </div>
+
 </section>
 
-<section id="invoices" class="section">
+
+<section id="invoices" class="section dashboard-section">
   <h2>Invoices</h2>
   <p>Your saved invoices will appear here.</p>
 </section>
 
-<section id="customers" class="section">
+
+<section id="customers" class="section dashboard-section">
   <h2>Customers</h2>
-  <p>Manage your customers from one place.</p>
+  <p>Keep your customer information organised.</p>
 </section>
 
-<section id="products" class="section">
+
+<section id="products" class="section dashboard-section">
   <h2>Products</h2>
-  <p>Keep your frequently used products ready.</p>
+  <p>Keep frequently used products ready.</p>
 </section>
 
-<section id="reports" class="section">
+
+<section id="reports" class="section dashboard-section">
   <h2>Reports</h2>
 
   <div class="cards">
+
     <div class="card">
       <h3>Total Invoices</h3>
-      <p>0</p>
+      <p id="reportInvoices">0</p>
     </div>
 
     <div class="card">
       <h3>Total Sales</h3>
-      <p>₹0</p>
+      <p id="reportSales">₹0</p>
     </div>
 
     <div class="card">
       <h3>Total GST</h3>
-      <p>₹0</p>
+      <p id="reportGST">₹0</p>
     </div>
+
   </div>
 </section>
+
+</main>
+
 
 <footer>
   © 2026 InvoicePro · Free Invoice Generator
 </footer>
+
+
+<!-- PRINTABLE INVOICE -->
+
+<div id="printInvoice" class="print-invoice">
+
+  <div class="print-header">
+
+    <div>
+      <h1 id="printBusiness">Your Business</h1>
+      <p id="printBusinessAddress"></p>
+      <p>
+        <span id="printBusinessPhone"></span>
+        <span id="printBusinessEmail"></span>
+      </p>
+      <p><strong>GSTIN:</strong> <span id="printBusinessGSTIN"></span></p>
+    </div>
+
+    <div class="invoice-title">
+      <h2>TAX INVOICE</h2>
+      <p><strong>Invoice No:</strong> <span id="printInvoiceNumber"></span></p>
+      <p><strong>Date:</strong> <span id="printInvoiceDate"></span></p>
+      <p><strong>Due Date:</strong> <span id="printDueDate"></span></p>
+    </div>
+
+  </div>
+
+
+  <div class="bill-section">
+
+    <div>
+      <h4>BILL TO</h4>
+      <strong id="printCustomer"></strong>
+      <p id="printCustomerAddress"></p>
+      <p id="printCustomerPhone"></p>
+      <p id="printCustomerEmail"></p>
+      <p><strong>GSTIN:</strong> <span id="printCustomerGSTIN"></span></p>
+    </div>
+
+    <div class="status-box">
+      <strong>Payment Status</strong>
+      <span id="printPaymentStatus"></span>
+    </div>
+
+  </div>
+
+
+  <table class="invoice-table">
+
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>HSN/SAC</th>
+        <th>Qty</th>
+        <th>Rate</th>
+        <th>Discount</th>
+        <th>GST</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td id="printProduct">Product / Service</td>
+        <td id="printHSN">-</td>
+        <td id="printQuantity">1</td>
+        <td id="printPrice">₹0.00</td>
+        <td id="printDiscount">₹0.00</td>
+        <td id="printGST">18%</td>
+        <td id="printAmount">₹0.00</td>
+      </tr>
+    </tbody>
+
+  </table>
+
+
+  <div class="print-bottom">
+
+    <div class="payment-details">
+      <h4>PAYMENT DETAILS</h4>
+      <p>Bank / UPI details can be added here.</p>
+
+      <h4>NOTES</h4>
+      <p>Thank you for your business.</p>
+    </div>
+
+
+    <div class="print-totals">
+
+      <p>
+        <span>Subtotal</span>
+        <strong id="printSubtotal">₹0.00</strong>
+      </p>
+
+      <p>
+        <span>Discount</span>
+        <strong id="printDiscountTotal">₹0.00</strong>
+      </p>
+
+      <p>
+        <span>Taxable Amount</span>
+        <strong id="printTaxable">₹0.00</strong>
+      </p>
+
+      <p>
+        <span>CGST</span>
+        <strong id="printCGST">₹0.00</strong>
+      </p>
+
+      <p>
+        <span>SGST</span>
+        <strong id="printSGST">₹0.00</strong>
+      </p>
+
+      <p class="final-total">
+        <span>Total</span>
+        <strong id="printTotal">₹0.00</strong>
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <div class="amount-words-print">
+    <strong>Amount in Words:</strong>
+    <span id="printAmountWords">Zero Rupees Only</span>
+  </div>
+
+
+  <div class="signature">
+    <p>Authorized Signature</p>
+    <div></div>
+  </div>
+
+</div>
+
 
 <script src="app.js"></script>
 
